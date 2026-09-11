@@ -1,0 +1,148 @@
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { generateProgram, ENGINE_VERSION, PARQ_QUESTIONS } from "./engine";
+import { IntakeSchema } from "./validation";
+import type { Intake } from "./types";
+
+type Bindings = {
+  DB: D1Database;
+  ASSETS: Fetcher;
+  COACH_API_KEY: string;
+  ENVIRONMENT: string;
+};
+
+const app = new Hono<{ Bindings: Bindings }>();
+app.use("/api/*", cors());
+
+const uuid = () => crypto.randomUUID();
+
+/* ---------------- public ---------------- */
+
+app.get("/api/health", (c) => c.json({ ok: true, engine: ENGINE_VERSION }));
+
+app.get("/api/intake/schema", (c) =>
+  c.json({ parq: PARQ_QUESTIONS, engineVersion: ENGINE_VERSION }),
+);
+
+/**
+ * Submit an intake. Generates the program synchronously and persists both.
+ * Returns the program, minus nutrition when safety suppressed it.
+ */
+app.post("/api/intake", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const parsed = IntakeSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: "invalid_intake", issues: parsed.error.issues }, 400);
+  }
+  const intake = parsed.data as Intake;
+  const program = generateProgram(intake);
+
+  const clientId = uuid();
+  const intakeId = uuid();
+  const programId = uuid();
+
+  const status = program.safety.blocked
+    ? "archived"
+    : program.safety.manualReview
+      ? "manual_review"
+      : program.safety.clearanceRequired
+        ? "pending_clearance"
+        : "active";
+
+  const stmts = [
+    c.env.DB.prepare(
+      `INSERT INTO clients (id,name,email,phone,dob,sex,timezone,status)
+       VALUES (?,?,?,?,?,?,?,?)
+       ON CONFLICT(email) DO UPDATE SET name=excluded.name, status=excluded.status, updated_at=datetime('now')`,
+    ).bind(
+      clientId, intake.client.name, intake.client.email, intake.client.phone ?? null,
+      intake.client.dob, intake.client.sex, intake.client.timezone ?? null, status,
+    ),
+    c.env.DB.prepare(`INSERT INTO intakes (id,client_id,payload) VALUES (?,?,?)`)
+      .bind(intakeId, clientId, JSON.stringify(intake)),
+    c.env.DB.prepare(
+      `INSERT INTO programs (id,client_id,intake_id,engine_version,level,level_score,goal,days_per_week,block_weeks,output,is_active)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+    ).bind(
+      programId, clientId, intakeId, ENGINE_VERSION, program.level.level, program.level.score,
+      intake.goals.primary, intake.schedule.daysPerWeek, intake.goals.blockWeeks,
+      JSON.stringify(program), program.safety.blocked || program.safety.clearanceRequired ? 0 : 1,
+    ),
+    ...program.safety.flags.map((f) =>
+      c.env.DB.prepare(
+        `INSERT INTO safety_flags (client_id,program_id,code,severity,message) VALUES (?,?,?,?,?)`,
+      ).bind(clientId, programId, f.code, f.severity, f.message),
+    ),
+  ];
+
+  await c.env.DB.batch(stmts);
+
+  return c.json({ clientId, programId, status, program }, 201);
+});
+
+/** Preview without persisting. Used by the form for live calculation. */
+app.post("/api/program/preview", async (c) => {
+  const parsed = IntakeSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: "invalid_intake", issues: parsed.error.issues }, 400);
+  return c.json(generateProgram(parsed.data as Intake));
+});
+
+/* ---------------- coach ---------------- */
+
+app.use("/api/coach/*", async (c, next) => {
+  const key = c.req.header("authorization")?.replace(/^Bearer\s+/i, "");
+  if (!key || key !== c.env.COACH_API_KEY) return c.json({ error: "unauthorized" }, 401);
+  await next();
+});
+
+app.get("/api/coach/queue", async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `SELECT c.id, c.name, c.email, c.status, p.level, p.goal, p.created_at,
+            (SELECT COUNT(*) FROM safety_flags f WHERE f.client_id=c.id AND f.resolved_at IS NULL) AS open_flags
+     FROM clients c
+     LEFT JOIN programs p ON p.client_id=c.id AND p.is_active=1
+     WHERE c.status IN ('pending_clearance','manual_review','intake')
+     ORDER BY c.created_at DESC`,
+  ).all();
+  return c.json({ clients: results });
+});
+
+app.get("/api/coach/client/:id", async (c) => {
+  const id = c.req.param("id");
+  const client = await c.env.DB.prepare(`SELECT * FROM clients WHERE id=?`).bind(id).first();
+  if (!client) return c.json({ error: "not_found" }, 404);
+  const program = await c.env.DB.prepare(
+    `SELECT * FROM programs WHERE client_id=? ORDER BY created_at DESC LIMIT 1`,
+  ).bind(id).first();
+  const { results: flags } = await c.env.DB.prepare(
+    `SELECT * FROM safety_flags WHERE client_id=? ORDER BY created_at DESC`,
+  ).bind(id).all();
+  return c.json({
+    client,
+    program: program ? { ...program, output: JSON.parse(String(program.output)) } : null,
+    flags,
+  });
+});
+
+app.post("/api/coach/program/:id/approve", async (c) => {
+  const id = c.req.param("id");
+  const { notes, startsOn } = await c.req.json<{ notes?: string; startsOn?: string }>();
+  await c.env.DB.prepare(
+    `UPDATE programs SET coach_approved=1, coach_notes=?, starts_on=?, is_active=1 WHERE id=?`,
+  ).bind(notes ?? null, startsOn ?? null, id).run();
+  return c.json({ ok: true });
+});
+
+app.post("/api/coach/flag/:flagId/resolve", async (c) => {
+  const { by } = await c.req.json<{ by?: string }>().catch(() => ({ by: undefined }));
+  await c.env.DB.prepare(
+    `UPDATE safety_flags SET resolved_at=datetime('now'), resolved_by=? WHERE id=?`,
+  ).bind(by ?? "coach", c.req.param("flagId")).run();
+  return c.json({ ok: true });
+});
+
+/* ---------------- static ---------------- */
+
+app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw));
+
+export default app;

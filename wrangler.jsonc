@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "program-engine",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-01-15",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "program-engine",
+      "database_id": "REPLACE_AFTER_CREATE",
+      "migrations_dir": "schema"
+    }
+  ],
+
+  "observability": { "enabled": true },
+
+  "vars": {
+    "ENVIRONMENT": "development"
+  }
+
+  // Secrets set via `wrangler secret put`:
+  //   COACH_API_KEY        auth for coach-facing endpoints
+  //   RESEND_API_KEY       transactional email (intake receipt, clearance request)
+  //   PDF_SERVICE_URL      optional, phase 1.5
+}

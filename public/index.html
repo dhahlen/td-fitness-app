@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Client intake</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --iron:#101315; --surface:#191D20; --raise:#212629; --line:#2E353A;
+  --chalk:#F0EEE9; --muted:#8D959B; --plate:#F2C230; --alert:#E2563F; --ok:#6FBF8B;
+  --r:6px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--iron); color:var(--chalk);
+  font:400 16px/1.55 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased;
+  padding:0 0 96px;
+}
+.wrap{max-width:580px;margin:0 auto;padding:0 20px}
+
+/* masthead */
+header{padding:28px 0 18px}
+.eyebrow{color:var(--muted);font-size:13px;letter-spacing:.01em;margin:0 0 6px}
+h1{font-family:Archivo,sans-serif;font-weight:700;font-size:30px;line-height:1.08;letter-spacing:-.02em;margin:0}
+
+/* barbell progress */
+.bar{position:relative;height:46px;margin:22px 0 30px;display:flex;align-items:center}
+.bar::before{content:"";position:absolute;left:0;right:0;top:50%;height:3px;background:var(--line);border-radius:2px}
+.plates{position:relative;display:flex;align-items:center;gap:3px;z-index:1}
+.pl{width:9px;border-radius:2px;background:var(--line);transition:background .25s,height .25s}
+.pl.done{background:var(--plate)}
+.pl.here{background:var(--chalk)}
+.barlab{margin-left:auto;position:relative;z-index:1;background:var(--iron);padding-left:12px;color:var(--muted);font-size:13px}
+.barlab b{color:var(--chalk);font-weight:600}
+
+/* steps */
+.step{display:none}
+.step.on{display:block}
+h2{font-family:Archivo,sans-serif;font-weight:600;font-size:21px;letter-spacing:-.01em;margin:0 0 6px}
+.sub{color:var(--muted);font-size:14.5px;margin:0 0 22px}
+
+fieldset{border:0;margin:0 0 22px;padding:0}
+legend{padding:0;font-size:15px;font-weight:500;margin-bottom:9px}
+label.q{display:block;font-size:15px;font-weight:500;margin-bottom:7px}
+.hint{color:var(--muted);font-size:13px;margin:-3px 0 8px}
+
+input[type=text],input[type=email],input[type=tel],input[type=number],input[type=date],select,textarea{
+  width:100%;background:var(--surface);border:1px solid var(--line);color:var(--chalk);
+  border-radius:var(--r);padding:13px 14px;font:inherit;font-size:16px;
+}
+textarea{min-height:84px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--plate);outline-offset:1px;border-color:transparent}
+select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 19px) 22px,calc(100% - 14px) 22px;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+.row{display:flex;gap:10px}
+.row>*{flex:1}
+.field{margin-bottom:18px}
+
+/* choice chips */
+.opts{display:flex;flex-direction:column;gap:7px}
+.opts.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:7px}
+.opt{position:relative;display:flex;align-items:center;gap:11px;min-height:50px;padding:11px 14px;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r);cursor:pointer;font-size:15px}
+.opt input{position:absolute;opacity:0;width:1px;height:1px}
+.opt .mark{flex:0 0 17px;height:17px;border:1.5px solid var(--muted);border-radius:50%;display:grid;place-items:center}
+.opt.sq .mark{border-radius:3px}
+.opt input:checked~.mark{border-color:var(--plate);background:var(--plate)}
+.opt input:checked~.mark::after{content:"";width:7px;height:7px;background:var(--iron);border-radius:inherit}
+.opt:has(input:checked){border-color:var(--plate);background:var(--raise)}
+.opt:has(input:focus-visible){outline:2px solid var(--plate);outline-offset:1px}
+.opt .txt small{display:block;color:var(--muted);font-size:12.5px;line-height:1.35}
+
+/* scale */
+.scale{display:flex;gap:5px}
+.scale .opt{justify-content:center;padding:11px 0;min-height:46px}
+.scale .mark{display:none}
+
+/* conditional block */
+.cond{display:none;margin:12px 0 0;padding:14px;border-left:2px solid var(--plate);background:var(--raise);border-radius:0 var(--r) var(--r) 0}
+.cond.on{display:block}
+
+/* nav */
+.nav{display:flex;gap:10px;margin-top:30px}
+button{font:inherit;font-weight:600;font-size:16px;border-radius:var(--r);padding:15px 22px;cursor:pointer;border:1px solid transparent}
+.primary{background:var(--plate);color:#141414;flex:1}
+.primary:hover{background:#ffd04a}
+.ghost{background:transparent;color:var(--muted);border-color:var(--line)}
+.ghost:hover{color:var(--chalk)}
+button:focus-visible{outline:2px solid var(--chalk);outline-offset:2px}
+
+.err{color:var(--alert);font-size:14px;margin-top:12px;display:none}
+.err.on{display:block}
+
+/* notices */
+.notice{border:1px solid var(--line);border-radius:var(--r);padding:15px;margin:18px 0;font-size:14.5px;line-height:1.5}
+.notice.warn{border-color:var(--alert);background:rgba(226,86,63,.08)}
+.notice.info{background:var(--surface)}
+.notice h3{font-family:Archivo,sans-serif;font-size:15px;margin:0 0 6px}
+
+/* results */
+.res{display:none}
+.res.on{display:block}
+.metric{border-top:1px solid var(--line);padding:16px 0}
+.metric:last-of-type{border-bottom:1px solid var(--line)}
+.metric .k{color:var(--muted);font-size:13px;margin-bottom:4px}
+.metric .v{font-family:Archivo,sans-serif;font-size:22px;font-weight:600;letter-spacing:-.01em}
+.metric .n{color:var(--muted);font-size:13.5px;margin-top:5px}
+.macro{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:4px 0 0}
+.macro div{background:var(--surface);border-radius:var(--r);padding:12px}
+.macro .k{font-size:12px}
+.macro .v{font-size:19px}
+table{width:100%;border-collapse:collapse;font-size:14.5px;margin-top:8px}
+th,td{text-align:left;padding:9px 0;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:500;font-size:13px}
+td:last-child,th:last-child{text-align:right}
+pre{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;overflow:auto;font-size:12px;line-height:1.5;max-height:280px}
+footer{color:var(--muted);font-size:13px;line-height:1.5;margin-top:30px;padding-top:18px;border-top:1px solid var(--line)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">New client intake</p>
+  <h1>Let's build your program</h1>
+</header>
+
+<div class="bar" aria-hidden="true">
+  <div class="plates" id="plates"></div>
+  <div class="barlab"><b id="stepNum">1</b> of 10</div>
+</div>
+
+<form id="f" novalidate>
+
+<!-- 1 -->
+<section class="step on" data-step="0">
+  <h2>Who you are</h2>
+  <p class="sub">Takes about eight minutes. Answer honestly rather than aspirationally, since the program is built off these numbers.</p>
+  <div class="field"><label class="q" for="name">Full name</label><input id="name" name="name" type="text" autocomplete="name" required></div>
+  <div class="field"><label class="q" for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required></div>
+  <div class="field"><label class="q" for="phone">Phone</label><input id="phone" name="phone" type="tel" autocomplete="tel"></div>
+  <div class="field"><label class="q" for="dob">Date of birth</label><input id="dob" name="dob" type="date" required></div>
+  <div class="field">
+    <label class="q" for="sex">Sex at birth</label>
+    <p class="hint">Used in the metabolic equations that set your calorie target.</p>
+    <select id="sex" name="sex" required><option value="">Select</option><option value="male">Male</option><option value="female">Female</option></select>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="step" data-step="1">
+  <h2>Health screening</h2>
+  <p class="sub">Standard pre-exercise questions. A yes doesn't stop you training, it just means we get a doctor's sign-off first.</p>
+  <div id="parq"></div>
+  <fieldset>
+    <legend>Are you currently pregnant, or less than 12 weeks postpartum?</legend>
+    <div class="opts grid" data-yn="pregnant"></div>
+  </fieldset>
+  <fieldset>
+    <legend>Have you ever been diagnosed with or treated for an eating disorder?</legend>
+    <p class="hint">This changes how we handle nutrition targets. It's confidential and it does not exclude you from coaching.</p>
+    <div class="opts grid" data-yn="ed"></div>
+  </fieldset>
+  <div class="field"><label class="q" for="meds">Medications, supplements, or conditions we should know about</label><textarea id="meds" name="meds" placeholder="Optional"></textarea></div>
+</section>
+
+<!-- 3 -->
+<section class="step" data-step="2">
+  <h2>Measurements</h2>
+  <p class="sub">Weigh yourself first thing, after the bathroom, before eating. Estimates are fine where you don't know.</p>
+  <div class="row field">
+    <div><label class="q" for="ft">Height (ft)</label><input id="ft" type="number" min="3" max="7" step="1" required></div>
+    <div><label class="q" for="in">(in)</label><input id="in" type="number" min="0" max="11" step="1" required></div>
+  </div>
+  <div class="field"><label class="q" for="wt">Current weight (lb)</label><input id="wt" type="number" min="60" max="700" step="0.1" required></div>
+  <div class="field"><label class="q" for="gw">Goal weight (lb)</label><p class="hint">Leave blank if you're not targeting a number.</p><input id="gw" type="number" min="60" max="700" step="0.1"></div>
+  <div class="row field">
+    <div><label class="q" for="waist">Waist (in)</label><input id="waist" type="number" step="0.1"></div>
+    <div><label class="q" for="hip">Hips (in)</label><input id="hip" type="number" step="0.1"></div>
+  </div>
+  <div class="field"><label class="q" for="bf">Body fat % if known</label><input id="bf" type="number" min="3" max="70" step="0.1"></div>
+  <div class="field"><label class="q" for="bfm">How was it measured?</label>
+    <select id="bfm"><option value="">Not measured</option><option value="dexa">DEXA scan</option><option value="bodpod">BodPod</option><option value="bia">Smart scale or handheld (BIA)</option><option value="calipers">Calipers</option><option value="visual">Visual estimate</option></select></div>
+</section>
+
+<!-- 4 -->
+<section class="step" data-step="3">
+  <h2>Your goal</h2>
+  <p class="sub">Pick the one that matters most over the next few months. We can shift emphasis later.</p>
+  <fieldset><div class="opts" id="goal"></div></fieldset>
+  <div class="field"><label class="q" for="weeks">How many weeks do you want this block to run?</label>
+    <select id="weeks"><option value="8">8 weeks</option><option value="12" selected>12 weeks</option><option value="16">16 weeks</option><option value="20">20 weeks</option></select></div>
+  <div class="field"><label class="q" for="event">Event or deadline date</label><p class="hint">Wedding, competition, vacation, photoshoot. Optional.</p><input id="event" type="date"></div>
+  <fieldset><legend>Which two areas do you most want to bring up?</legend>
+    <div class="opts grid" id="prio"></div>
+    <p class="hint" style="margin-top:8px">Pick up to two. These get extra volume.</p>
+  </fieldset>
+</section>
+
+<!-- 5 -->
+<section class="step" data-step="4">
+  <h2>Training background</h2>
+  <p class="sub">This sets your starting volume and how fast the program progresses. Under-reporting here gets you a program that's too easy.</p>
+  <div class="field"><label class="q" for="yrs">Years of consistent resistance training</label>
+    <select id="yrs" required><option value="0">Less than 6 months</option><option value="2">6 months to 2 years</option><option value="4">2 to 5 years</option><option value="6">More than 5 years</option></select></div>
+  <div class="field"><label class="q" for="cons">Of the last 12 months, how many did you train consistently?</label>
+    <select id="cons" required><option value="0">Fewer than 3</option><option value="1">3 to 6</option><option value="2">6 to 10</option><option value="3">10 or more</option></select></div>
+  <fieldset><legend>Comfort with the main barbell lifts</legend>
+    <p class="hint">Squat, deadlift, bench press, overhead press.</p>
+    <div class="opts" id="comp"></div></fieldset>
+  <div class="field"><label class="q" for="freq">How many days a week are you training right now?</label>
+    <select id="freq"><option value="0">Not currently training</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6 or more</option></select></div>
+  <fieldset><legend>Have you competed?</legend><div class="opts" id="comptn"></div></fieldset>
+  <div class="field"><label class="q">Best lifts if you know them (lb, optional)</label>
+    <div class="row" style="margin-bottom:10px"><input id="sq" type="number" placeholder="Squat"><input id="bp" type="number" placeholder="Bench"></div>
+    <div class="row"><input id="dl" type="number" placeholder="Deadlift"><input id="ohp" type="number" placeholder="Overhead"></div></div>
+</section>
+
+<!-- 6 -->
+<section class="step" data-step="5">
+  <h2>Schedule and equipment</h2>
+  <p class="sub">Tell us what you'll actually do, not what you'd like to do on a perfect week.</p>
+  <div class="field"><label class="q" for="days">Days a week you can train</label>
+    <select id="days" required><option value="3">3 days</option><option value="4" selected>4 days</option><option value="5">5 days</option><option value="6">6 days</option></select></div>
+  <div class="field"><label class="q" for="mins">Realistic session length</label>
+    <select id="mins"><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60" selected>60 minutes</option><option value="75">75 minutes</option><option value="90">90 minutes or more</option></select></div>
+  <fieldset><legend>Which days work?</legend><div class="opts grid" id="dow"></div></fieldset>
+  <fieldset><legend>Equipment you have access to</legend><div class="opts" id="equip"></div></fieldset>
+  <fieldset><legend>Cardio equipment available</legend><div class="opts grid" id="cardioeq"></div></fieldset>
+</section>
+
+<!-- 7 -->
+<section class="step" data-step="6">
+  <h2>Eating</h2>
+  <p class="sub">Macros only work if the plan fits how you already live.</p>
+  <fieldset><legend>Dietary pattern</legend><div class="opts" id="diet"></div></fieldset>
+  <div class="field"><label class="q" for="allerg">Allergies or intolerances</label><input id="allerg" type="text" placeholder="Optional"></div>
+  <div class="field"><label class="q" for="avoid">Foods you won't eat</label><input id="avoid" type="text" placeholder="Optional"></div>
+  <div class="field"><label class="q" for="meals">Meals a day that suit your schedule</label>
+    <select id="meals"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select></div>
+  <div class="field"><label class="q" for="cook">How often do you cook?</label>
+    <select id="cook"><option value="most">Most meals</option><option value="some">Some meals, some takeout</option><option value="rare">Rarely, mostly eating out</option></select></div>
+  <div class="field"><label class="q" for="alc">Alcoholic drinks per week</label><input id="alc" type="number" min="0" max="60" value="0"></div>
+  <fieldset><legend>Have you tracked macros before?</legend><div class="opts grid" data-yn="tracked"></div></fieldset>
+</section>
+
+<!-- 8 -->
+<section class="step" data-step="7">
+  <h2>Daily activity</h2>
+  <p class="sub">What you do outside the gym drives a bigger share of your calorie burn than your workouts do.</p>
+  <fieldset><legend>Your job</legend><div class="opts" id="job"></div></fieldset>
+  <div class="field"><label class="q" for="steps">Average daily steps</label><p class="hint">Check your phone's health app. Estimate if you don't track.</p>
+    <select id="steps"><option value="4000">Under 5,000</option><option value="6500" selected>5,000 to 8,000</option><option value="10000">8,000 to 12,000</option><option value="14000">Over 12,000</option></select></div>
+  <div class="field"><label class="q" for="cardionow">Cardio sessions you currently do per week</label>
+    <select id="cardionow"><option value="0">None</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4 or more</option></select></div>
+</section>
+
+<!-- 9 -->
+<section class="step" data-step="8">
+  <h2>Recovery</h2>
+  <p class="sub">Sleep and stress set the ceiling on how much training you can absorb. We adjust volume down when they're poor rather than pretending they don't matter.</p>
+  <div class="field"><label class="q" for="sleep">Average hours of sleep</label>
+    <select id="sleep"><option value="5">Under 6</option><option value="6.5" selected>6 to 7</option><option value="7.5">7 to 8</option><option value="8.5">8 or more</option></select></div>
+  <fieldset><legend>Sleep quality</legend><div class="opts scale" id="sleepq"></div></fieldset>
+  <fieldset><legend>Stress level right now, 1 low to 10 high</legend><div class="opts scale" id="stress"></div></fieldset>
+  <div class="field"><label class="q" for="caff">Caffeine, mg per day</label><p class="hint">A coffee is roughly 100mg, a pre-workout 200 to 300mg.</p><input id="caff" type="number" min="0" max="1500" value="0"></div>
+  <fieldset><legend>Have you burned out or overtrained before?</legend><div class="opts grid" data-yn="burnout"></div></fieldset>
+</section>
+
+<!-- 10 -->
+<section class="step" data-step="9">
+  <h2>Injuries and preferences</h2>
+  <p class="sub">Last one. Anything you flag here gets swapped for a movement that doesn't aggravate it.</p>
+  <fieldset><legend>Any current pain or past injury?</legend><div class="opts grid" data-yn="inj"></div>
+    <div class="cond" id="injc">
+      <label class="q">Where?</label>
+      <div class="opts grid" id="injsite" style="margin-bottom:12px"></div>
+      <label class="q" for="injdet">Describe it, including what makes it worse</label>
+      <textarea id="injdet"></textarea>
+      <label class="q" for="injcare" style="margin-top:12px">Are you under care for it?</label>
+      <select id="injcare"><option value="no">No</option><option value="pt">Physical therapy</option><option value="md">Doctor</option><option value="chiro">Chiropractor</option></select>
+    </div>
+  </fieldset>
+  <div class="field"><label class="q" for="love">Exercises you enjoy</label><input id="love" type="text" placeholder="Optional"></div>
+  <div class="field"><label class="q" for="hate">Exercises you hate or want to avoid</label><input id="hate" type="text" placeholder="Optional"></div>
+  <div class="field"><label class="q" for="checkin">Check-in frequency</label>
+    <select id="checkin"><option value="weekly" selected>Weekly</option><option value="biweekly">Every two weeks</option><option value="monthly">Monthly</option></select></div>
+  <fieldset><legend>Share your progress on team leaderboards?</legend>
+    <p class="hint">Coming soon. You choose what's visible and you can change this anytime.</p>
+    <div class="opts" id="lb"></div></fieldset>
+</section>
+
+<p class="err" id="err"></p>
+<div class="nav">
+  <button type="button" class="ghost" id="back" style="display:none">Back</button>
+  <button type="button" class="primary" id="next">Continue</button>
+</div>
+</form>
+
+<!-- RESULTS -->
+<section class="res" id="res">
+  <h2 id="resHead">Your program outline</h2>
+  <p class="sub" id="resSub"></p>
+  <div id="flags"></div>
+  <div id="out"></div>
+  <div class="nav">
+    <button type="button" class="primary" id="copy">Copy intake data</button>
+    <button type="button" class="ghost" id="redo">Start over</button>
+  </div>
+  <details style="margin-top:22px"><summary style="cursor:pointer;color:var(--muted);font-size:14px">Raw data for your coach</summary><pre id="json"></pre></details>
+  <footer>This outline is a starting point generated from your answers, not medical or dietary advice. Your coach reviews and adjusts it before you begin. Stop training and speak to a doctor if you get chest pain, dizziness, or unusual shortness of breath.</footer>
+</section>
+
+</div>
+
+<script>
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+let uid=0;
+function opts(el,items,type,name,cls){
+  if(!el) return;
+  el.innerHTML=items.map(o=>{
+    const v=o.v??o, t=o.t??o, d=o.d?`<small>${o.d}</small>`:'';
+    const id='o'+(++uid);
+    return `<label class="opt ${type==='checkbox'?'sq':''} ${cls||''}">
+      <input type="${type}" name="${name}" value="${v}" id="${id}"><span class="mark"></span>
+      <span class="txt">${t}${d}</span></label>`;
+  }).join('');
+}
+const YN=[{v:'no',t:'No'},{v:'yes',t:'Yes'}];
+
+/* PAR-Q+ core */
+const PARQ=[
+ 'Has a doctor ever said you have a heart condition or high blood pressure?',
+ 'Do you feel pain in your chest at rest, during daily activity, or when you exercise?',
+ 'Do you lose balance from dizziness, or have you lost consciousness in the last 12 months?',
+ 'Have you been diagnosed with another chronic medical condition?',
+ 'Are you currently taking prescribed medication for a chronic condition?',
+ 'Do you have a bone or joint problem that could be made worse by exercise?',
+ 'Has a doctor ever said you should only exercise under medical supervision?'
+];
+$('#parq').innerHTML=PARQ.map((q,i)=>
+ `<fieldset><legend>${q}</legend><div class="opts grid" data-yn="parq${i}"></div></fieldset>`).join('');
+$$('[data-yn]').forEach(d=>opts(d,YN,'radio',d.dataset.yn));
+
+opts($('#goal'),[
+ {v:'fatloss',t:'Lose fat, keep muscle',d:'Calorie deficit with full lifting volume'},
+ {v:'lean',t:'Build muscle, stay lean',d:'Small surplus, slow controlled gain'},
+ {v:'mass',t:'Build muscle, size first',d:'Larger surplus, some fat gain expected'},
+ {v:'recomp',t:'Recomposition',d:'Gain muscle and lose fat at maintenance'},
+ {v:'strength',t:'Get stronger',d:'Heavy loads, lower reps, longer rest'},
+ {v:'health',t:'General health and conditioning'},
+ {v:'contest',t:'Contest prep',d:'Stage-ready conditioning on a deadline'}
+],'radio','goal');
+
+opts($('#prio'),['Chest','Back','Shoulders','Arms','Quads','Glutes','Hamstrings','Calves','Core'].map(x=>({v:x.toLowerCase(),t:x})),'checkbox','prio');
+
+opts($('#comp'),[
+ {v:'0',t:'Never done them'},
+ {v:'1',t:'Tried them, unsure on form'},
+ {v:'2',t:'Comfortable, self-taught'},
+ {v:'3',t:'Coached and confident'}
+],'radio','comp');
+
+opts($('#comptn'),[{v:'0',t:'No'},{v:'2',t:'Yes, amateur or local'},{v:'4',t:'Yes, national or pro'}],'radio','comptn');
+
+opts($('#dow'),['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>({v:d,t:d})),'checkbox','dow');
+
+opts($('#equip'),[
+ {v:'commercial',t:'Full commercial gym'},
+ {v:'homebar',t:'Home gym with barbell and rack'},
+ {v:'db',t:'Dumbbells only'},
+ {v:'machines',t:'Machines only'},
+ {v:'bands',t:'Bands and bodyweight'},
+ {v:'cables',t:'Cable station'},
+ {v:'specialty',t:'Specialty bars, chains, or sleds'}
+],'checkbox','equip');
+
+opts($('#cardioeq'),['Treadmill','Bike','Rower','Elliptical','Stair climber','Outdoors only'].map(x=>({v:x,t:x})),'checkbox','cardioeq');
+
+opts($('#diet'),[
+ {v:'none',t:'No restrictions'},{v:'vegetarian',t:'Vegetarian'},{v:'vegan',t:'Vegan'},
+ {v:'pescatarian',t:'Pescatarian'},{v:'lowcarb',t:'Low carb or keto'},
+ {v:'halal',t:'Halal'},{v:'kosher',t:'Kosher'},{v:'glutenfree',t:'Gluten free'}
+],'radio','diet');
+
+opts($('#job'),[
+ {v:'1.20',t:'Desk job, mostly seated'},
+ {v:'1.30',t:'Desk job with regular movement'},
+ {v:'1.45',t:'On my feet much of the day'},
+ {v:'1.60',t:'Physically active work'},
+ {v:'1.75',t:'Heavy manual labour'}
+],'radio','job');
+
+opts($('#sleepq'),[1,2,3,4,5].map(n=>({v:n,t:n})),'radio','sleepq');
+opts($('#stress'),[1,2,3,4,5,6,7,8,9,10].map(n=>({v:n,t:n})),'radio','stress');
+opts($('#injsite'),['Lower back','Neck','Shoulder','Elbow','Wrist','Hip','Knee','Ankle'].map(x=>({v:x,t:x})),'checkbox','injsite');
+opts($('#lb'),[
+ {v:'full',t:'Yes, show my lifts and consistency'},
+ {v:'lifts',t:'Lifts and consistency only, no body data'},
+ {v:'none',t:'Keep everything private'}
+],'radio','lb');
+
+/* conditional injury block */
+document.addEventListener('change',e=>{
+  if(e.target.name==='inj') $('#injc').classList.toggle('on',e.target.value==='yes');
+  if(e.target.name==='prio'){
+    const c=$$('input[name=prio]:checked');
+    if(c.length>2) e.target.checked=false;
+  }
+});
+
+/* ---------- progress ---------- */
+const STEPS=10; let cur=0;
+$('#plates').innerHTML=Array.from({length:STEPS},(_,i)=>
+  `<span class="pl" style="height:${18+Math.min(i,5)*3}px"></span>`).join('');
+function paint(){
+  $$('.pl').forEach((p,i)=>{p.className='pl'+(i<cur?' done':i===cur?' here':'')});
+  $('#stepNum').textContent=cur+1;
+  $$('.step').forEach(s=>s.classList.toggle('on',+s.dataset.step===cur));
+  $('#back').style.display=cur?'block':'none';
+  $('#next').textContent=cur===STEPS-1?'Build my program':'Continue';
+  window.scrollTo({top:0,behavior:'instant'});
+}
+
+/* ---------- validation ---------- */
+const REQ={
+ 0:[['#name','Enter your name'],['#email','Enter a valid email'],['#dob','Enter your date of birth'],['#sex','Select an option']],
+ 2:[['#ft','Enter your height'],['#in','Enter your height'],['#wt','Enter your weight']]
+};
+function valid(){
+  const e=$('#err'); e.classList.remove('on');
+  for(const [sel,msg] of (REQ[cur]||[])){
+    const el=$(sel);
+    if(!el.value || (el.type==='email' && !/^\S+@\S+\.\S+$/.test(el.value))){
+      e.textContent=msg; e.classList.add('on'); el.focus(); return false;
+    }
+  }
+  if(cur===0){
+    const age=(Date.now()-new Date($('#dob').value))/31557600000;
+    if(age<18){ e.textContent='This program is for adults 18 and over. Please have a parent or guardian contact us directly.'; e.classList.add('on'); return false; }
+    if(age>95){ e.textContent='Please check the date of birth.'; e.classList.add('on'); return false; }
+  }
+  if(cur===1){
+    for(let i=0;i<7;i++) if(!document.querySelector(`input[name=parq${i}]:checked`)){
+      e.textContent='Please answer every health screening question.'; e.classList.add('on'); return false; }
+    if(!document.querySelector('input[name=pregnant]:checked')||!document.querySelector('input[name=ed]:checked')){
+      e.textContent='Please answer every health screening question.'; e.classList.add('on'); return false; }
+  }
+  if(cur===3 && !document.querySelector('input[name=goal]:checked')){
+    e.textContent='Pick a primary goal.'; e.classList.add('on'); return false; }
+  if(cur===5 && !$$('input[name=dow]:checked').length){
+    e.textContent='Select which days you can train.'; e.classList.add('on'); return false; }
+  return true;
+}
+$('#next').onclick=()=>{ if(!valid())return; cur<STEPS-1?(cur++,paint()):build(); };
+$('#back').onclick=()=>{ cur--; paint(); };
+$('#redo').onclick=()=>location.reload();
+paint();
+
+/* ---------- engine ---------- */
+const rv=n=>document.querySelector(`input[name=${n}]:checked`)?.value;
+const cv=n=>$$(`input[name=${n}]:checked`).map(i=>i.value);
+const num=s=>parseFloat($(s).value)||0;
+
+function build(){
+  const sex=$('#sex').value;
+  const age=Math.floor((Date.now()-new Date($('#dob').value))/31557600000);
+  const lb=num('#wt'), kg=lb*0.45359237;
+  const cm=(num('#ft')*12+num('#in'))*2.54;
+  const bf=num('#bf')||null;
+  const goal=rv('goal'), days=+$('#days').value;
+
+  /* level score */
+  let pts=+$('#yrs').value + +$('#cons').value + (+rv('comp')||0) + (+rv('comptn')||0);
+  const bw=lb;
+  const rel=[[num('#sq'),1.25,2.0],[num('#bp'),1.0,1.5],[num('#dl'),1.5,2.25],[num('#ohp'),0.6,0.9]];
+  let sp=0,n=0;
+  rel.forEach(([v,mid,adv])=>{ if(v>0){n++; const r=v/bw; sp+= r>=adv?6:r>=mid?4:r>=mid*0.7?2:0;} });
+  if(n) pts+=Math.round(sp/n);
+  if(+$('#cons').value<=1 && pts>10) pts=10;
+  const LEVEL = pts<=5?'Beginner':pts<=10?'Novice':pts<=16?'Intermediate':pts<=21?'Advanced':'Elite';
+
+  /* flags */
+  const parqYes=[...Array(7).keys()].filter(i=>rv('parq'+i)==='yes');
+  const clearance=parqYes.length>0;
+  const preg=rv('pregnant')==='yes';
+  const edFlag=rv('ed')==='yes';
+  const sleep=+$('#sleep').value, stress=+rv('stress')||5;
+
+  /* energy */
+  let bmr;
+  if(bf && ['dexa','bodpod'].includes($('#bfm').value)) bmr=370+21.6*(kg*(1-bf/100));
+  else bmr=10*kg+6.25*cm-5*age+(sex==='male'?5:-161);
+  const act=(+rv('job')||1.3) + days*0.025 + (+$('#cardionow').value)*0.02
+            + ({'4000':0,'6500':0.02,'10000':0.06,'14000':0.10}[$('#steps').value]||0);
+  const tdee=Math.round(bmr*act);
+
+  /* target calories + rate */
+  let cals=tdee, rate='', phase='';
+  const lean = bf ? (sex==='male'? bf<15 : bf<24) : false;
+  const high = bf ? (sex==='male'? bf>30 : bf>38) : false;
+  if(goal==='fatloss'||goal==='contest'){
+    const pct = goal==='contest'? (lean?0.35:0.6) : high?0.9 : lean?0.5 : 0.7;
+    const kcalDef = (lb*pct/100)*3500/7;
+    cals = Math.round(tdee - Math.min(kcalDef, tdee*0.25));
+    rate = `${pct.toFixed(2)}% of body weight per week (about ${(lb*pct/100).toFixed(1)} lb)`;
+    phase='Deficit';
+  } else if(goal==='lean'){
+    cals=Math.round(tdee*(LEVEL==='Beginner'||LEVEL==='Novice'?1.12:1.08));
+    rate='0.25 to 0.4% of body weight per week'; phase='Surplus';
+  } else if(goal==='mass'){
+    cals=Math.round(tdee*(LEVEL==='Beginner'||LEVEL==='Novice'?1.18:1.12));
+    rate='0.4 to 0.5% of body weight per week'; phase='Surplus';
+  } else if(goal==='recomp'){ cals=tdee; rate='Scale weight roughly flat'; phase='Maintenance'; }
+  else { cals=tdee; rate='Scale weight roughly flat'; phase='Maintenance'; }
+
+  /* floors */
+  const floor=Math.max(Math.round(bmr), sex==='male'?1500:1200);
+  let floored=false;
+  if(cals<floor){ cals=floor; floored=true; }
+
+  /* macros */
+  const lbmKg = bf? kg*(1-bf/100) : kg*0.80;
+  let pPerKg;
+  if(phase==='Deficit') pPerKg = (LEVEL==='Beginner'||LEVEL==='Novice')? 2.0 : 2.6*(lbmKg/kg);
+  else pPerKg = 1.9;
+  const protein=Math.round(kg*pPerKg);
+  const fatG=Math.round(Math.max(kg*0.7, cals*0.20/9));
+  const carbs=Math.max(0, Math.round((cals - protein*4 - fatG*9)/4));
+
+  /* volume */
+  const V={Beginner:[6,10,4,8],Novice:[10,14,8,12],Intermediate:[12,18,10,16],Advanced:[14,22,12,18],Elite:[16,24,12,20]}[LEVEL];
+  let mod=1;
+  if(sleep<6) mod*=0.85;
+  if(stress>=8) mod*=0.85;
+  if(age>=50) mod*=0.90;
+  if(phase==='Deficit' && cals<tdee*0.8) mod*=0.90;
+  if(+$('#cons').value<=1) mod*=0.75;
+  const vLo=Math.max(6,Math.round(V[0]*mod)), vHi=Math.max(8,Math.round(V[1]*mod));
+  const sLo=Math.max(4,Math.round(V[2]*mod)), sHi=Math.max(6,Math.round(V[3]*mod));
+
+  /* split */
+  const adv=['Advanced','Elite'].includes(LEVEL);
+  const inter=LEVEL==='Intermediate';
+  let split, sched;
+  if(days===3){
+    if(!adv&&!inter){ split='Full body, three days'; sched=[
+      ['Day 1','Squat pattern, horizontal press, horizontal pull, hinge accessory, core'],
+      ['Day 2','Hinge pattern, vertical press, vertical pull, single-leg work, core'],
+      ['Day 3','Squat variation, incline press, row variation, arms, calves']]; }
+    else { split='Push, pull, legs'; sched=[
+      ['Day 1','Chest, shoulders, triceps'],
+      ['Day 2','Back, rear delts, biceps'],
+      ['Day 3','Quads, hamstrings, glutes, calves']]; }
+  } else if(days===4){
+    split='Upper, lower, upper, lower'; sched=[
+      ['Day 1','Upper, press emphasis'],['Day 2','Lower, quad emphasis'],
+      ['Day 3','Upper, pull emphasis'],['Day 4','Lower, posterior chain emphasis']];
+  } else if(days===5){
+    if(adv){ split='Body-part split with isolation on large groups, supersets on small'; sched=[
+      ['Day 1','Chest, straight sets, then triceps supersets'],
+      ['Day 2','Back, straight sets, then biceps supersets'],
+      ['Day 3','Quad-dominant legs, then calves'],
+      ['Day 4','Shoulders, then arm superset cluster'],
+      ['Day 5','Posterior chain, then weak-point work']]; }
+    else { split='Push, pull, legs, upper, lower'; sched=[
+      ['Day 1','Push'],['Day 2','Pull'],['Day 3','Legs'],
+      ['Day 4','Upper, weak-point bias'],['Day 5','Lower, hamstring and glute bias']]; }
+  } else {
+    split='Push, pull, legs run twice'; sched=[
+      ['Day 1','Push, heavy'],['Day 2','Pull, heavy'],['Day 3','Legs, heavy'],
+      ['Day 4','Push, volume'],['Day 5','Pull, volume'],['Day 6','Legs, volume']];
+  }
+
+  /* cardio */
+  let cardio;
+  const beg=['Beginner','Novice'].includes(LEVEL);
+  if(goal==='fatloss'&&beg) cardio={n:3,d:'25 to 35 min',z:'Zone 2, 60 to 70% max HR',note:'On non-lifting days. Plus a daily step target of 8,000 to 10,000, which will do more for the deficit than the sessions themselves.'};
+  else if(goal==='fatloss') cardio={n:'3 to 4',d:'30 to 40 min steady, 15 to 20 min intervals',z:'Two Zone 2 plus one or two interval sessions',note:'Keep intervals off heavy leg days, or separate by at least six hours. Cycling and rowing beat running while leg volume is high.'};
+  else if(goal==='contest') cardio={n:'4 to 6',d:'Start at 20 min, escalate',z:'Mostly Zone 2, low impact',note:'Add cardio before cutting calories further once intake nears the floor. Cap at 300 min a week and watch strength as the stop signal.'};
+  else if(goal==='strength') cardio={n:2,d:'20 min',z:'Zone 2, cycling or incline walk',note:'Enough for cardiovascular health without taxing leg recovery.'};
+  else cardio={n:2,d:'20 to 30 min',z:'Zone 2, low impact',note:'Capped deliberately. Cardio is not the growth stimulus and every extra session costs recovery you could spend on volume.'};
+
+  /* ---- render ---- */
+  $('form').style.display='none'; $('.bar').style.display='none';
+  $('#res').classList.add('on');
+  $('#resSub').textContent=`${LEVEL} classification, ${days} training days a week, ${$('#weeks').value} week block.`;
+
+  let flags='';
+  if(clearance) flags+=`<div class="notice warn"><h3>Medical clearance needed first</h3>You answered yes to ${parqYes.length} screening question${parqYes.length>1?'s':''}. Your coach will send a clearance form for your doctor. The outline below is held until that comes back, and it may change based on what your doctor says.</div>`;
+  if(preg) flags+=`<div class="notice warn"><h3>Coach review required</h3>Training during pregnancy and the postpartum period needs individual programming alongside your obstetric provider. Your coach will contact you directly rather than issuing an automated plan.</div>`;
+  if(edFlag) flags+=`<div class="notice warn"><h3>Nutrition targets held</h3>Given what you shared, we're not going to hand you calorie and macro numbers automatically. Your coach will talk it through with you and can coordinate with a registered dietitian. The training side below still stands. If you want to talk to someone now, the National Alliance for Eating Disorders helpline is 1-866-662-1235.</div>`;
+  if(floored) flags+=`<div class="notice info"><h3>Calories raised to the floor</h3>The rate you asked for would have pushed intake below what's safe, so we've set it at ${cals} kcal instead. Fat loss will be slower and that's the correct trade.</div>`;
+  if(mod<0.9) flags+=`<div class="notice info"><h3>Volume adjusted down</h3>Sleep, stress, or time away from training means we've started you ${Math.round((1-mod)*100)}% below the standard volume for your level. It climbs as those improve.</div>`;
+  $('#flags').innerHTML=flags;
+
+  const dl=(k,v,n)=>`<div class="metric"><div class="k">${k}</div><div class="v">${v}</div>${n?`<div class="n">${n}</div>`:''}</div>`;
+  let h='';
+  h+=dl('Training level',LEVEL,`Score ${pts}. Sets your starting volume, rep ranges, and how fast load climbs.`);
+  h+=dl('Split',split,sched.map(s=>`${s[0]}: ${s[1]}`).join('<br>'));
+  h+=dl('Weekly volume',`${vLo} to ${vHi} hard sets`,`Per large muscle group. ${sLo} to ${sHi} for smaller groups. Start at the bottom and add about two sets a week.`);
+  const pr=cv('prio'); if(pr.length) h+=dl('Priority muscles',pr.join(', '),`These get an extra ${LEVEL==='Beginner'?2:LEVEL==='Novice'?3:4} sets a week within your cap.`);
+  h+=dl('Cardio',`${cardio.n} sessions, ${cardio.d}`,`${cardio.z}. ${cardio.note}`);
+  h+=dl('Rep and rest scheme',
+    goal==='strength'?'1 to 5 reps at 1 to 3 RIR':'6 to 12 on compounds, 10 to 15 on isolation',
+    (goal==='strength'?'3 to 5 min rest on main lifts.':'2 to 3 min rest on compounds, 60 to 90 sec on isolation.')
+    + (beg?' No RIR targets for the first four weeks. Fixed reps while you learn the movements.':' Work within 1 to 3 reps of failure.'));
+  h+=dl('Progression',
+    beg?'Linear':inter?'Double progression':'Block periodization',
+    beg?'Add the smallest increment every session you complete all reps. Two failed sessions triggers a 10% reset.'
+      :inter?'Add reps within the range, then add load and reset to the bottom of the range.'
+      :'Four to six weeks accumulation, two to three weeks intensification, one week deload.');
+  h+=dl('Deload','Every 5th or 6th week','50% volume at 85 to 90% of load. Pulled forward if performance drops two sessions running or readiness stays low.');
+
+  if(!edFlag){
+    h+=dl('Maintenance calories',tdee+' kcal',`BMR ${Math.round(bmr)}, activity factor ${act.toFixed(2)}.`);
+    h+=dl(`Daily target, ${phase.toLowerCase()}`,cals+' kcal',`Target rate: ${rate}. Recalculated every two weeks against your trend weight, not a single day's number.`);
+    h+=`<div class="metric"><div class="k">Macros</div><div class="macro">
+      <div><div class="k">Protein</div><div class="v">${protein}g</div></div>
+      <div><div class="k">Carbs</div><div class="v">${carbs}g</div></div>
+      <div><div class="k">Fat</div><div class="v">${fatG}g</div></div></div>
+      <div class="n">Roughly ${Math.round(protein/+$('#meals').value)}g protein per meal across ${$('#meals').value} meals. Fibre target ${Math.round(cals/1000*14)}g, water ${Math.round(kg*35/1000*10)/10}L plus 500ml per training hour.</div></div>`;
+  }
+
+  const gw=num('#gw');
+  if(gw && !edFlag){
+    const bmiGoal=(gw*0.45359237)/Math.pow(cm/100,2);
+    const wks=Math.abs(lb-gw)/(lb*0.0075);
+    h+=dl('Goal weight check', bmiGoal<18.5? 'Target is too low':`About ${Math.ceil(wks)} weeks at a safe rate`,
+      bmiGoal<18.5?'That goal weight falls below a healthy range for your height. Your coach will set a revised target with you.':'Based on your current weight and a sustainable rate of change.');
+  }
+  $('#out').innerHTML=h;
+
+  const payload={
+    submitted:new Date().toISOString(),
+    client:{name:$('#name').value,email:$('#email').value,phone:$('#phone').value,dob:$('#dob').value,age,sex},
+    screening:{parq:PARQ.map((q,i)=>({q,a:rv('parq'+i)})),clearance_required:clearance,pregnant:preg,ed_history:edFlag,notes:$('#meds').value},
+    metrics:{height_cm:Math.round(cm),weight_lb:lb,weight_kg:+kg.toFixed(1),goal_weight_lb:gw||null,waist_in:num('#waist')||null,hip_in:num('#hip')||null,body_fat_pct:bf,bf_method:$('#bfm').value||null},
+    goals:{primary:goal,block_weeks:+$('#weeks').value,event_date:$('#event').value||null,priority_muscles:cv('prio')},
+    history:{years:+$('#yrs').value,consistency:+$('#cons').value,compound_competence:+rv('comp')||0,current_freq:+$('#freq').value,competition:+rv('comptn')||0,
+      maxes:{squat:num('#sq')||null,bench:num('#bp')||null,deadlift:num('#dl')||null,ohp:num('#ohp')||null},level_score:pts,level:LEVEL},
+    schedule:{days_per_week:days,session_minutes:+$('#mins').value,available_days:cv('dow'),equipment:cv('equip'),cardio_equipment:cv('cardioeq')},
+    nutrition:{pattern:rv('diet'),allergies:$('#allerg').value,avoid:$('#avoid').value,meals_per_day:+$('#meals').value,cooking:$('#cook').value,alcohol_per_week:num('#alc'),tracked_before:rv('tracked')},
+    activity:{job_multiplier:+rv('job')||null,steps:+$('#steps').value,cardio_sessions:+$('#cardionow').value},
+    recovery:{sleep_hours:sleep,sleep_quality:+rv('sleepq')||null,stress:stress,caffeine_mg:num('#caff'),burnout_history:rv('burnout')},
+    injuries:{present:rv('inj'),sites:cv('injsite'),detail:$('#injdet').value,under_care:$('#injcare').value},
+    preferences:{enjoy:$('#love').value,avoid_exercises:$('#hate').value,checkin:$('#checkin').value,leaderboard_consent:rv('lb')},
+    computed:{bmr:Math.round(bmr),activity_factor:+act.toFixed(2),tdee,target_calories:edFlag?null:cals,calorie_floor:floor,floored,
+      protein_g:edFlag?null:protein,carb_g:edFlag?null:carbs,fat_g:edFlag?null:fatG,
+      volume_large:[vLo,vHi],volume_small:[sLo,sHi],volume_modifier:+mod.toFixed(2),split,schedule:sched,cardio,phase,rate}
+  };
+  $('#json').textContent=JSON.stringify(payload,null,2);
+  $('#copy').onclick=()=>{navigator.clipboard.writeText(JSON.stringify(payload,null,2));$('#copy').textContent='Copied';setTimeout(()=>$('#copy').textContent='Copy intake data',1600);};
+  window.scrollTo({top:0,behavior:'instant'});
+}
+</script>
+</body>
+</html>
