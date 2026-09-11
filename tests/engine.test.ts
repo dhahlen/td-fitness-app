@@ -3,6 +3,7 @@ import { generateProgram } from "../src/engine";
 import { classifyLevel } from "../src/engine/level";
 import { computeNutrition, adjustCalories } from "../src/engine/nutrition";
 import { LIMITS } from "../src/engine/standards";
+import type { Intake } from "../src/types";
 import { advancedMass, beginnerFatLoss } from "./fixtures";
 
 const NOW = new Date("2026-09-11T00:00:00Z");
@@ -84,6 +85,29 @@ describe("nutrition", () => {
   it("keeps fat at or above the hormonal floor", () => {
     const n = computeNutrition(beginnerFatLoss, "beginner", 34);
     expect(n.fat.pctOfCalories).toBeGreaterThanOrEqual(19.5);
+  });
+
+  it("marks the BMR floor separately from the absolute floor", () => {
+    // A large sedentary client is held by BMR, which only slows the rate.
+    const big = computeNutrition(beginnerFatLoss, "beginner", 34);
+    expect(big.floorApplied).toBe(true);
+    expect(big.floorType).toBe("bmr");
+    expect(big.targetCalories).toBe(big.bmr);
+
+    // A small client is held by the absolute floor, which routes to the coach.
+    const small: Intake = { ...beginnerFatLoss,
+      client: { ...beginnerFatLoss.client, sex: "female" },
+      metrics: { heightCm: 150, weightKg: 45, bodyFatPct: 35, bodyFatMethod: "bia" },
+      activity: { job: "desk_seated", steps: "under_5k", cardioSessions: 0 } };
+    const n = computeNutrition(small, "beginner", 34);
+    expect(n.floorType).toBe("absolute");
+    expect(n.targetCalories).toBe(LIMITS.absoluteCalorieFloor.female);
+  });
+
+  it("reports no floor when the target clears both floors", () => {
+    const n = computeNutrition(advancedMass, "advanced", 32);
+    expect(n.floorApplied).toBe(false);
+    expect(n.floorType).toBeNull();
   });
 
   it("checks adherence before cutting again on a stalled deficit", () => {

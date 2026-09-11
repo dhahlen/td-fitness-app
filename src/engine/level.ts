@@ -1,12 +1,9 @@
 import {
-  COMPETITION_POINTS, CONSISTENCY_POINTS, DETRAINING_MONTHS_THRESHOLD,
-  LEVEL_THRESHOLDS, STRENGTH_STANDARDS, YEARS_POINTS, type Level,
+  COMPETITION_POINTS, CONSISTENCY_POINTS, CONSISTENT_MONTHS_MIDPOINT,
+  DETRAINING_MONTHS_THRESHOLD, LEVEL_THRESHOLDS, STRENGTH_STANDARDS,
+  YEARS_POINTS, type Level,
 } from "./standards";
 import type { Intake, LevelResult } from "../types";
-
-const CONSISTENT_MONTHS: Record<Intake["history"]["consistentMonths12"], number> = {
-  under_3: 1.5, "3_6": 4.5, "6_10": 8, "10_plus": 11,
-};
 
 function strengthPoints(intake: Intake): number | null {
   const maxes = intake.history.maxes;
@@ -50,7 +47,7 @@ export function classifyLevel(intake: Intake): LevelResult {
   }
 
   // Detraining cap. Returning lifters get hurt when treated as their former selves.
-  const months = CONSISTENT_MONTHS[intake.history.consistentMonths12];
+  const months = CONSISTENT_MONTHS_MIDPOINT[intake.history.consistentMonths12];
   let cappedByDetraining = false;
   if (months < DETRAINING_MONTHS_THRESHOLD && (level === "intermediate" || level === "advanced" || level === "elite")) {
     level = "novice";

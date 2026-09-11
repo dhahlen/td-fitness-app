@@ -1,6 +1,7 @@
 import {
-  DETRAINING_MONTHS_THRESHOLD, LARGE_MUSCLES, SMALL_MUSCLES,
-  VOLUME, VOLUME_FLOOR, VOLUME_MODIFIERS, type Level,
+  CONSISTENT_MONTHS_MIDPOINT, DETRAINING_MONTHS_THRESHOLD, LARGE_MUSCLES,
+  SMALL_MUSCLES, VOLUME, VOLUME_FLOOR, VOLUME_MODIFIER_THRESHOLDS,
+  VOLUME_MODIFIERS, type Level,
 } from "./standards";
 import type { Intake, MuscleGroup, VolumeResult } from "../types";
 
@@ -16,8 +17,6 @@ const INJURY_IMPACT: Record<string, MuscleGroup[]> = {
   ankle: ["calves", "quads"],
 };
 
-const CONSISTENT_MONTHS = { under_3: 1.5, "3_6": 4.5, "6_10": 8, "10_plus": 11 } as const;
-
 export function computeVolume(
   intake: Intake,
   level: Level,
@@ -28,11 +27,20 @@ export function computeVolume(
   const applied: string[] = [];
   let mod = 1;
 
-  if (intake.recovery.sleepHours < 6) { mod *= VOLUME_MODIFIERS.lowSleep; applied.push("low sleep"); }
-  if (intake.recovery.stress >= 8) { mod *= VOLUME_MODIFIERS.highStress; applied.push("high stress"); }
-  if (age >= 50) { mod *= VOLUME_MODIFIERS.olderAthlete; applied.push("age 50+"); }
+  if (intake.recovery.sleepHours < VOLUME_MODIFIER_THRESHOLDS.lowSleepHours) {
+    mod *= VOLUME_MODIFIERS.lowSleep;
+    applied.push("low sleep");
+  }
+  if (intake.recovery.stress >= VOLUME_MODIFIER_THRESHOLDS.highStress) {
+    mod *= VOLUME_MODIFIERS.highStress;
+    applied.push("high stress");
+  }
+  if (age >= VOLUME_MODIFIER_THRESHOLDS.olderAthleteAge) {
+    mod *= VOLUME_MODIFIERS.olderAthlete;
+    applied.push(`age ${VOLUME_MODIFIER_THRESHOLDS.olderAthleteAge}+`);
+  }
   if (deepDeficit) { mod *= VOLUME_MODIFIERS.deepDeficit; applied.push("deep deficit"); }
-  if (CONSISTENT_MONTHS[intake.history.consistentMonths12] < DETRAINING_MONTHS_THRESHOLD) {
+  if (CONSISTENT_MONTHS_MIDPOINT[intake.history.consistentMonths12] < DETRAINING_MONTHS_THRESHOLD) {
     mod *= VOLUME_MODIFIERS.returning;
     applied.push("returning from layoff");
   }

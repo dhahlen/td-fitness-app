@@ -1,4 +1,4 @@
-import type { Level } from "./standards";
+import { SIX_DAY_GATE, type Level } from "./standards";
 import type { Intake, SplitResult } from "../types";
 
 const isAdvanced = (l: Level) => l === "advanced" || l === "elite";
@@ -100,5 +100,9 @@ export function selectSplit(intake: Intake, level: Level): SplitResult {
 
 /** Six-day programs are gated on recovery, not on ambition. */
 export function sixDayEligible(intake: Intake, level: Level): boolean {
-  return isAdvanced(level) && intake.recovery.sleepHours >= 7 && intake.recovery.stress < 7;
+  return (
+    isAdvanced(level) &&
+    intake.recovery.sleepHours >= SIX_DAY_GATE.minSleepHours &&
+    intake.recovery.stress < SIX_DAY_GATE.maxStress
+  );
 }

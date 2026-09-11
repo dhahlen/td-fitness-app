@@ -5,6 +5,7 @@ import { computeVolume } from "./volume";
 import { selectSplit, sixDayEligible } from "./split";
 import { prescribeCardio } from "./cardio";
 import { selectProgression, selectScheme } from "./progression";
+import { VOLUME_MODIFIER_THRESHOLDS } from "./standards";
 import type { Intake, Program } from "../types";
 
 export const ENGINE_VERSION = "0.1.0";
@@ -30,7 +31,9 @@ export function generateProgram(intake: Intake, now = new Date()): Program {
   }
 
   const nutrition = safety.suppressNutrition ? null : computeNutrition(intake, level.level, age);
-  const deepDeficit = nutrition ? nutrition.targetCalories < nutrition.tdee * 0.8 : false;
+  const deepDeficit = nutrition
+    ? nutrition.targetCalories < nutrition.tdee * VOLUME_MODIFIER_THRESHOLDS.deepDeficitPctOfTdee
+    : false;
 
   // Six-day programs are gated on recovery. Downgrade rather than refuse.
   const effective: Intake =

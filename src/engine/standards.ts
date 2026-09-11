@@ -26,6 +26,11 @@ export const YEARS_POINTS = { under_6mo: 0, "6mo_2yr": 2, "2_5yr": 4, over_5yr: 
 export const CONSISTENCY_POINTS = { under_3: 0, "3_6": 1, "6_10": 2, "10_plus": 3 } as const;
 export const COMPETITION_POINTS = { none: 0, amateur: 2, pro: 4 } as const;
 
+/** Midpoint months for each consistency band, used by the detraining rules. */
+export const CONSISTENT_MONTHS_MIDPOINT = {
+  under_3: 1.5, "3_6": 4.5, "6_10": 8, "10_plus": 11,
+} as const;
+
 /**
  * Relative strength standards as multiples of body weight.
  *
@@ -70,6 +75,15 @@ export const VOLUME: Record<
   elite: { large: [16, 24], small: [12, 20], priorityBonus: 4 },
 };
 
+/** The point at which each volume modifier switches on. Spec section 4. */
+export const VOLUME_MODIFIER_THRESHOLDS = {
+  lowSleepHours: 6,
+  highStress: 8,
+  olderAthleteAge: 50,
+  /** Target calories below this share of TDEE counts as a deep deficit. */
+  deepDeficitPctOfTdee: 0.8,
+} as const;
+
 /** Multiplicative, applied in order, then floored. */
 export const VOLUME_MODIFIERS = {
   lowSleep: 0.85,
@@ -91,6 +105,9 @@ export const LARGE_MUSCLES = [
 export const SMALL_MUSCLES = [
   "biceps", "triceps", "calves", "forearms", "abs", "rear_delts",
 ] as const;
+
+/** Six-day programs fail on recovery, so they are gated on it. Section 5. */
+export const SIX_DAY_GATE = { minSleepHours: 7, maxStress: 7 } as const;
 
 /* ------------------------------------------------------------------ */
 /* Nutrition                                                           */
@@ -151,6 +168,18 @@ export const FAT = {
 } as const;
 
 export const CARB = { minPerKgBwSurplus: 3.0 } as const;
+
+export const KCAL_PER_KG_FAT = 7700;
+
+/** Two-weekly adjustment loop. Spec section 9.5. */
+export const ADJUSTMENT = {
+  reviewEveryDays: 14,
+  onTargetRatioLow: 0.8,
+  onTargetRatioHigh: 1.2,
+  stepPctOfCalories: 0.065,
+  /** Below this weekly change a deficit counts as stalled, not slow. */
+  stalledRateKgPerWeek: 0.05,
+} as const;
 
 export const FIBRE_G_PER_1000KCAL = 14;
 export const WATER_ML_PER_KG = 35;

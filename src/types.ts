@@ -178,6 +178,8 @@ export interface NutritionResult {
   targetRatePctPerWeek: number;
   targetRateKgPerWeek: number;
   floorApplied: boolean;
+  /** Which floor bound. The absolute floor routes to the coach, BMR does not. */
+  floorType: "bmr" | "absolute" | null;
   calorieFloor: number;
   protein: { grams: number; perKgBw: number; perMeal: number };
   carbs: { grams: number };

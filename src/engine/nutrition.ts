@@ -1,11 +1,9 @@
 import {
-  ACTIVITY, ASSUMED_LBM_FRACTION, BF_BANDS, CARB, CONTEST_PREP_RATE,
-  FAT, FAT_LOSS_RATE, FIBRE_G_PER_1000KCAL, LIMITS, PROTEIN,
+  ACTIVITY, ADJUSTMENT, ASSUMED_LBM_FRACTION, BF_BANDS, CARB, CONTEST_PREP_RATE,
+  FAT, FAT_LOSS_RATE, FIBRE_G_PER_1000KCAL, KCAL_PER_KG_FAT, LIMITS, PROTEIN,
   SURPLUS, TRUSTED_BF_METHODS, WATER_ML_PER_KG, type Level,
 } from "./standards";
 import type { Intake, NutritionResult, Phase } from "../types";
-
-const KCAL_PER_KG_FAT = 7700;
 
 export function basalRate(intake: Intake, age: number): number {
   const { weightKg, heightCm, bodyFatPct, bodyFatMethod } = intake.metrics;
@@ -84,9 +82,20 @@ export function computeNutrition(intake: Intake, level: Level, age: number): Nut
   }
 
   // Floors. Non-negotiable.
-  const floor = Math.max(Math.round(bmr), LIMITS.absoluteCalorieFloor[intake.client.sex]);
+  const bmrFloor = Math.round(bmr);
+  const absoluteFloor = LIMITS.absoluteCalorieFloor[intake.client.sex];
+  const floor = Math.max(bmrFloor, absoluteFloor);
   const floorApplied = cals < floor;
   if (floorApplied) cals = floor;
+
+  // Spec section 9.3 routes the absolute floor to the coach. The BMR floor is
+  // common on a large sedentary client and only slows the rate, so it stays a
+  // notice.
+  const floorType: NutritionResult["floorType"] = !floorApplied
+    ? null
+    : absoluteFloor >= bmrFloor
+      ? "absolute"
+      : "bmr";
 
   // Protein
   const lbm = leanBodyMassKg(intake);
@@ -114,6 +123,7 @@ export function computeNutrition(intake: Intake, level: Level, age: number): Nut
     targetRatePctPerWeek: +ratePct.toFixed(2),
     targetRateKgPerWeek: +((kg * ratePct) / 100).toFixed(2),
     floorApplied,
+    floorType,
     calorieFloor: floor,
     protein: {
       grams: proteinG,
@@ -124,7 +134,7 @@ export function computeNutrition(intake: Intake, level: Level, age: number): Nut
     fat: { grams: fatG, pctOfCalories: +(((fatG * 9) / cals) * 100).toFixed(1) },
     fibreG: Math.round((cals / 1000) * FIBRE_G_PER_1000KCAL),
     waterMl: Math.round(kg * WATER_ML_PER_KG),
-    reviewEveryDays: 14,
+    reviewEveryDays: ADJUSTMENT.reviewEveryDays,
   };
 }
 
@@ -143,18 +153,18 @@ export function adjustCalories(
   }
   const ratio = actualRateKgPerWeek / targetRateKgPerWeek;
 
-  if (ratio >= 0.8 && ratio <= 1.2) {
+  if (ratio >= ADJUSTMENT.onTargetRatioLow && ratio <= ADJUSTMENT.onTargetRatioHigh) {
     return { calories: current, action: "hold", note: "On target." };
   }
-  if (phase === "deficit" && Math.abs(actualRateKgPerWeek) < 0.05) {
+  if (phase === "deficit" && Math.abs(actualRateKgPerWeek) < ADJUSTMENT.stalledRateKgPerWeek) {
     return {
       calories: current,
       action: "check_adherence",
       note: "Weight flat in a deficit. Check logging accuracy and weekend intake before cutting further.",
     };
   }
-  const step = Math.round(current * 0.065);
-  const tooSlow = ratio < 0.8;
+  const step = Math.round(current * ADJUSTMENT.stepPctOfCalories);
+  const tooSlow = ratio < ADJUSTMENT.onTargetRatioLow;
   const towardGoal = phase === "deficit" ? -1 : 1;
   return {
     calories: current + (tooSlow ? towardGoal * step : -towardGoal * step),
