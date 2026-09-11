@@ -37,7 +37,7 @@ Status meanings:
 |---|---|---|
 | `active` | clean intake, program issued | yes |
 | `pending_clearance` | a PAR-Q answer was positive | no, doctor sign-off first |
-| `manual_review` | pregnancy or eating disorder screen | no, coach contacts them |
+| `manual_review` | pregnancy screen, eating disorder screen, or a target that landed on the absolute calorie floor | no, coach contacts them |
 | `archived` | under 18, hard block | no |
 
 ### `POST /api/program/preview`
@@ -79,7 +79,8 @@ Client record, most recent program with `output` parsed, and all flags.
             modalities, placement, note } | null
   progression: { model, description, deloadWeek, deloadRule, rirIntroducedWeek } | null
   nutrition:   { bmr, activityFactor, tdee, targetCalories, phase,
-                 targetRatePctPerWeek, floorApplied, protein, carbs, fat, ... } | null
+                 targetRatePctPerWeek, floorApplied, floorType, protein,
+                 carbs, fat, ... } | null
   scheme: "strength_primary" | "hypertrophy_compound" | ... | null
 }
 ```
@@ -87,3 +88,18 @@ Client record, most recent program with `output` parsed, and all flags.
 `null` on a section always means safety suppressed it. Never render a fallback
 value or a placeholder number in its place. Render the corresponding flag
 message instead.
+
+## Calorie floors
+
+`floorApplied` says a floor bound the target. `floorType` says which one, and
+they route differently. See spec section 9.3.
+
+| `floorType` | what bound | routing |
+|---|---|---|
+| `"bmr"` | target fell below calculated BMR | notice flag, program is issued |
+| `"absolute"` | target fell below 1,500 kcal for men or 1,200 for women | `manual_review`, coach contacts them |
+| `null` | no floor applied | none |
+
+A BMR floor is routine on a large sedentary client in a deficit, since a 25%
+cap on the deficit can still land under BMR. It slows the rate rather than
+signalling anything wrong, so it does not go to the queue.

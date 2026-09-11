@@ -8,14 +8,19 @@ previous is deployed and working against real data.
 Already scaffolded. Finish and verify.
 
 - [ ] `wrangler d1 create program-engine`, paste the id into `wrangler.jsonc`
-- [ ] Apply `schema/0001_init.sql` locally and remotely
-- [ ] `POST /api/intake` persists a client, intake, program, and flags
-- [ ] `POST /api/program/preview` returns a program without persisting
-- [ ] Coach endpoints behind `COACH_API_KEY`
-- [ ] All engine tests green, typecheck clean
+- [x] Apply `schema/0001_init.sql` locally. Remote still needs the database id
+- [x] `POST /api/intake` persists a client, intake, program, and flags
+- [x] `POST /api/program/preview` returns a program without persisting
+- [x] Coach endpoints behind `COACH_API_KEY`
+- [x] All engine tests green, typecheck clean
 
 Done when: you can curl a full intake payload and get a program back, and the
 rows land in D1.
+
+Verified locally end to end: intake, re-intake, preview, the four routing
+statuses, and every coach endpoint, covered by `tests/routes.api.test.ts`
+against a local D1. Creating the remote database is the one step left, and it
+needs a Cloudflare account.
 
 ## M2: the intake form talks to the API
 

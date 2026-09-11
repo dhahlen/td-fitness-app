@@ -23,8 +23,13 @@ src/index.ts              Hono API
 schema/                   D1 migrations
 public/                   intake form
 docs/                     spec, API contract, build plan
-tests/                    engine tests, 22 of them, all pure
+tests/                    engine tests in node, route tests in workerd
 ```
+
+Tests run as two projects. `tests/engine.test.ts` is pure and runs in plain
+node, which keeps the determinism test honest. `tests/*.api.test.ts` runs in
+workerd against a local D1 with `schema/` applied, so route and persistence
+behaviour is covered without a deployed database.
 
 ## The one rule
 

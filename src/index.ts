@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { generateProgram, ENGINE_VERSION, PARQ_QUESTIONS } from "./engine";
 import { IntakeSchema } from "./validation";
-import type { Intake } from "./types";
+import type { Intake, Program } from "./types";
 
 type Bindings = {
   DB: D1Database;
@@ -15,6 +15,24 @@ const app = new Hono<{ Bindings: Bindings }>();
 app.use("/api/*", cors());
 
 const uuid = () => crypto.randomUUID();
+
+type ClientStatus = "archived" | "manual_review" | "pending_clearance" | "active";
+
+/**
+ * Routing status for a generated program. Reads the engine's safety result,
+ * never widens or relaxes it.
+ *
+ * Hitting the absolute calorie floor routes to the coach rather than being
+ * served automatically. See docs/program-engine-spec.md section 9.3.
+ */
+function routingStatus(program: Program): ClientStatus {
+  if (program.safety.blocked) return "archived";
+  if (program.safety.manualReview || program.nutrition?.floorType === "absolute") {
+    return "manual_review";
+  }
+  if (program.safety.clearanceRequired) return "pending_clearance";
+  return "active";
+}
 
 /* ---------------- public ---------------- */
 
@@ -37,27 +55,34 @@ app.post("/api/intake", async (c) => {
   const intake = parsed.data as Intake;
   const program = generateProgram(intake);
 
-  const clientId = uuid();
+  // Re-intake keeps the existing client row and its id, so the new intake and
+  // program hang off the same client instead of orphaning themselves.
+  const existing = await c.env.DB.prepare(`SELECT id FROM clients WHERE email=?`)
+    .bind(intake.client.email)
+    .first<{ id: string }>();
+
+  const clientId = existing?.id ?? uuid();
   const intakeId = uuid();
   const programId = uuid();
 
-  const status = program.safety.blocked
-    ? "archived"
-    : program.safety.manualReview
-      ? "manual_review"
-      : program.safety.clearanceRequired
-        ? "pending_clearance"
-        : "active";
+  const status = routingStatus(program);
+  const isActive = status === "active" ? 1 : 0;
 
   const stmts = [
     c.env.DB.prepare(
       `INSERT INTO clients (id,name,email,phone,dob,sex,timezone,status)
        VALUES (?,?,?,?,?,?,?,?)
-       ON CONFLICT(email) DO UPDATE SET name=excluded.name, status=excluded.status, updated_at=datetime('now')`,
+       ON CONFLICT(email) DO UPDATE SET
+         name=excluded.name, phone=excluded.phone, dob=excluded.dob,
+         sex=excluded.sex, timezone=excluded.timezone, status=excluded.status,
+         updated_at=datetime('now')`,
     ).bind(
       clientId, intake.client.name, intake.client.email, intake.client.phone ?? null,
       intake.client.dob, intake.client.sex, intake.client.timezone ?? null, status,
     ),
+    // A new intake supersedes the last program. One active program per client
+    // is enforced by idx_programs_active, so stand the old one down first.
+    c.env.DB.prepare(`UPDATE programs SET is_active=0 WHERE client_id=?`).bind(clientId),
     c.env.DB.prepare(`INSERT INTO intakes (id,client_id,payload) VALUES (?,?,?)`)
       .bind(intakeId, clientId, JSON.stringify(intake)),
     c.env.DB.prepare(
@@ -66,7 +91,7 @@ app.post("/api/intake", async (c) => {
     ).bind(
       programId, clientId, intakeId, ENGINE_VERSION, program.level.level, program.level.score,
       intake.goals.primary, intake.schedule.daysPerWeek, intake.goals.blockWeeks,
-      JSON.stringify(program), program.safety.blocked || program.safety.clearanceRequired ? 0 : 1,
+      JSON.stringify(program), isActive,
     ),
     ...program.safety.flags.map((f) =>
       c.env.DB.prepare(
@@ -126,10 +151,23 @@ app.get("/api/coach/client/:id", async (c) => {
 
 app.post("/api/coach/program/:id/approve", async (c) => {
   const id = c.req.param("id");
-  const { notes, startsOn } = await c.req.json<{ notes?: string; startsOn?: string }>();
-  await c.env.DB.prepare(
-    `UPDATE programs SET coach_approved=1, coach_notes=?, starts_on=?, is_active=1 WHERE id=?`,
-  ).bind(notes ?? null, startsOn ?? null, id).run();
+  const { notes, startsOn } = await c.req
+    .json<{ notes?: string; startsOn?: string }>()
+    .catch(() => ({ notes: undefined, startsOn: undefined }));
+
+  const row = await c.env.DB.prepare(`SELECT client_id FROM programs WHERE id=?`)
+    .bind(id)
+    .first<{ client_id: string }>();
+  if (!row) return c.json({ error: "not_found" }, 404);
+
+  await c.env.DB.batch([
+    // One active program per client, so retire the others before activating.
+    c.env.DB.prepare(`UPDATE programs SET is_active=0 WHERE client_id=? AND id<>?`)
+      .bind(row.client_id, id),
+    c.env.DB.prepare(
+      `UPDATE programs SET coach_approved=1, coach_notes=?, starts_on=?, is_active=1 WHERE id=?`,
+    ).bind(notes ?? null, startsOn ?? null, id),
+  ]);
   return c.json({ ok: true });
 });
 
