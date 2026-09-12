@@ -68,6 +68,9 @@ and a target load.
 appears only where a reported max supports one, which was a deliberate call:
 see the load section of `docs/api-contract.md`.
 
+Volume delivered by the generator is measured against the spec's table in
+`docs/volume-audit.md`, and tests fail if a profile exceeds a level's ceiling.
+
 Still open from this milestone:
 
 - `STRENGTH_STANDARDS` are placeholders. See

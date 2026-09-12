@@ -4,8 +4,8 @@ import { generateProgram } from "../src/engine";
 import { EXERCISES, availableEquipment, canPerform, exerciseById, familyOf, isContraindicated } from "../src/engine/exercises";
 import { distribute, estimateMinutes } from "../src/engine/session";
 import { roundLoad } from "../src/engine/load";
-import { EXERCISE_ALLOCATION, SCHEMES } from "../src/engine/standards";
-import type { Intake, PrescribedExercise } from "../src/types";
+import { EXERCISE_ALLOCATION, LARGE_MUSCLES, SCHEMES, VOLUME } from "../src/engine/standards";
+import type { Intake, MuscleGroup, PrescribedExercise } from "../src/types";
 import { advancedMass, beginnerFatLoss } from "./fixtures";
 
 const NOW = new Date("2026-09-11T00:00:00Z");
@@ -294,6 +294,86 @@ describe("shared volume", () => {
           .filter((e) => exerciseById(e.exerciseId)!.primeMovers.includes(muscle))
           .reduce((n, e) => n + e.sets, 0);
         expect(sets, `${session.label} overruns ${muscle}`).toBeLessThanOrEqual(p.volume!.perMuscle[muscle][1]);
+      }
+    }
+  });
+
+  it("keeps every profile inside the level's weekly cap", () => {
+    // The number that matters is what lands across the week once compounds are
+    // credited to every prime mover they train, not what the table says.
+    const profiles: Array<[string, Intake]> = [
+      ["beginner 3d", beginnerFatLoss],
+      ["beginner 4d long", { ...beginnerFatLoss, schedule: { ...beginnerFatLoss.schedule, daysPerWeek: 4, sessionMinutes: 90 } }],
+      ["advanced 5d long", { ...advancedMass, schedule: { ...advancedMass.schedule, sessionMinutes: 90 } }],
+      ["advanced 6d long", { ...advancedMass,
+        schedule: { ...advancedMass.schedule, daysPerWeek: 6, sessionMinutes: 90 },
+        recovery: { ...advancedMass.recovery, sleepHours: 8, stress: 3 } }],
+      ["elite 6d, two hours", { ...advancedMass,
+        history: { ...advancedMass.history, competition: "pro" },
+        schedule: { ...advancedMass.schedule, daysPerWeek: 6, sessionMinutes: 120 },
+        recovery: { ...advancedMass.recovery, sleepHours: 8, stress: 2 } }],
+    ];
+
+    for (const [label, intake] of profiles) {
+      const p = generateProgram(intake, NOW);
+      const weekly = new Map<MuscleGroup, number>();
+      for (const s of p.sessions!) {
+        for (const e of s.exercises) {
+          for (const m of exerciseById(e.exerciseId)!.primeMovers) {
+            weekly.set(m, (weekly.get(m) ?? 0) + e.sets);
+          }
+        }
+      }
+      for (const [muscle, sets] of weekly) {
+        expect(sets, `${label}: ${muscle} at ${sets} sets`).toBeLessThanOrEqual(p.volume!.perMuscle[muscle][1]);
+      }
+
+      // The block ramps on top of week 1, so the peak week has to hold too.
+      for (const w of p.block!) {
+        for (const [muscle, sets] of Object.entries(w.setsPerMuscle) as Array<[MuscleGroup, number]>) {
+          expect(sets, `${label}: week ${w.week} ${muscle} at ${sets} sets`)
+            .toBeLessThanOrEqual(p.volume!.perMuscle[muscle][1]);
+        }
+      }
+    }
+  });
+
+  it("caps what one muscle is given in a single session", () => {
+    for (const intake of [beginnerFatLoss, advancedMass]) {
+      for (const session of generateProgram(intake, NOW).sessions!) {
+        const perMuscle = new Map<MuscleGroup, number>();
+        for (const e of session.exercises) {
+          for (const m of exerciseById(e.exerciseId)!.primeMovers) {
+            perMuscle.set(m, (perMuscle.get(m) ?? 0) + e.sets);
+          }
+        }
+        for (const [muscle, sets] of perMuscle) {
+          expect(sets, `${session.label}: ${muscle}`)
+            .toBeLessThanOrEqual(EXERCISE_ALLOCATION.maxSetsPerMusclePerSession);
+        }
+      }
+    }
+  });
+
+  it("says so when a once-weekly split cannot carry the volume", () => {
+    // The advanced body-part split trains a muscle once, so the weekly target
+    // does not fit in one session. The client should be told, not shorted.
+    const p = generateProgram(advancedMass, NOW);
+    const capped = p.sessions!.flatMap((s) => s.notes).filter((n) => n.includes("capped at"));
+    expect(capped.length).toBeGreaterThan(0);
+    expect(p.safety.flags.some((f) => f.code === "volume_reduced")).toBe(true);
+  });
+
+  it("never prescribes past the published maximum for the level", () => {
+    // VOLUME is the spec's table. Nothing may exceed its top, priority
+    // muscles included. Spec section 4.
+    for (const intake of [beginnerFatLoss, advancedMass]) {
+      const p = generateProgram(intake, NOW);
+      const base = VOLUME[p.level.level];
+      for (const [muscle, [lo, hi]] of Object.entries(p.volume!.perMuscle) as Array<[MuscleGroup, [number, number]]>) {
+        const cap = (LARGE_MUSCLES as readonly string[]).includes(muscle) ? base.large[1] : base.small[1];
+        expect(hi, `${muscle} ceiling`).toBeLessThanOrEqual(cap);
+        expect(lo).toBeLessThanOrEqual(hi);
       }
     }
   });

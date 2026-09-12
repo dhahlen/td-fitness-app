@@ -67,7 +67,10 @@ export function computeVolume(
   for (const m of all) {
     const isLarge = (LARGE_MUSCLES as readonly string[]).includes(m);
     let [lo, hi] = isLarge ? large : small;
-    if (priority.has(m)) hi += base.priorityBonus;
+    // A priority muscle starts higher in its range. It does not get a taller
+    // range: the top of the level's band is what recovery supports, and the
+    // bonus biases allocation upward within the level cap. Spec section 2.4.
+    if (priority.has(m)) lo = Math.min(lo + base.priorityBonus, hi);
     if (injured.has(m)) {
       lo = Math.round(lo * VOLUME_MODIFIERS.injuredRegion);
       hi = Math.round(hi * VOLUME_MODIFIERS.injuredRegion);

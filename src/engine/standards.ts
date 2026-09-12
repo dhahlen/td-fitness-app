@@ -250,6 +250,17 @@ export const EXERCISE_ALLOCATION = {
   maxExercisesPerMusclePerSession: 3,
   /** Below this many sets in a session a muscle is dropped from that day. */
   minSetsWorthTraining: 2,
+  /**
+   * Most sets one muscle is given in a single session.
+   *
+   * The volume table in spec section 4 is weekly, and a once-weekly body-part
+   * split would otherwise put all of it into one session. Sets past roughly a
+   * dozen are performed too fatigued to be worth what they cost, so the
+   * surplus is dropped and reported rather than prescribed. Raising this
+   * number is the only change needed to go back to spending the whole week in
+   * one session.
+   */
+  maxSetsPerMusclePerSession: 12,
 } as const;
 
 /** Highest exercise skill rating a level is prescribed without coaching. */

@@ -21,26 +21,33 @@ export function distribute(total: number, buckets: number): number[] {
 const isLarge = (m: MuscleGroup): boolean => (LARGE_MUSCLES as readonly string[]).includes(m);
 
 /**
- * Week 1 sets per muscle: the bottom of the level's range plus the priority
- * bonus, capped by the range. Starting at the bottom leaves the block a
+ * Week 1 sets per muscle: the bottom of the muscle's range, which already
+ * carries the priority bonus. Starting at the bottom leaves the block a
  * progression lever other than load. Spec section 4.
  */
 export function weeklySetTargets(
-  intake: Intake,
+  _intake: Intake,
   split: SplitResult,
   volume: VolumeResult,
 ): Map<MuscleGroup, number> {
-  const priority = new Set(intake.goals.priorityMuscles.slice(0, 2));
   const weekly = new Map<MuscleGroup, number>();
   for (const day of split.days) {
     for (const m of day.muscles) {
-      if (weekly.has(m)) continue;
-      const range = volume.perMuscle[m];
-      const lo = range[0] + (priority.has(m) ? volume.priorityBonus : 0);
-      weekly.set(m, Math.min(lo, range[1]));
+      if (!weekly.has(m)) weekly.set(m, volume.perMuscle[m][0]);
     }
   }
   return weekly;
+}
+
+/** Weekly sets an exercise list represents, crediting every prime mover. */
+function creditFor(exercises: readonly PrescribedExercise[]): Map<MuscleGroup, number> {
+  const out = new Map<MuscleGroup, number>();
+  for (const e of exercises) {
+    for (const m of exerciseById(e.exerciseId)?.primeMovers ?? [e.muscle]) {
+      out.set(m, (out.get(m) ?? 0) + e.sets);
+    }
+  }
+  return out;
 }
 
 function schemeFor(compound: boolean, goalScheme: SchemeName): SchemeName {
@@ -90,34 +97,30 @@ export function buildSessions(
   // rather than filled with a number they cannot yet estimate. Spec section 6.
   const withholdRir = rirIntroducedWeek !== null && rirIntroducedWeek > 1;
 
-  const weekly = weeklySetTargets(intake, split, volume);
-
-  // Spread each muscle's week across the days that train it.
-  const perDay = new Map<string, number>();
-  for (const [m, total] of weekly) {
-    const days = split.days.filter((d) => d.muscles.includes(m));
-    const shares = distribute(total, days.length);
-    days.forEach((d, i) => perDay.set(`${d.day}:${m}`, shares[i] ?? 0));
-  }
-
+  // One budget for the whole week, drawn down as days are built. Tracking it
+  // per day let a Romanian deadlift on Monday credit glutes on Monday and then
+  // pay for them again on Thursday, which overshot the weekly cap.
+  const remaining = new Map(weeklySetTargets(intake, split, volume));
   const superset = split.name.startsWith("Body-part split");
 
-  return split.days.map((day) => {
+  return split.days.map((day, dayIndex) => {
+    const daysLeftFor = (m: MuscleGroup): number =>
+      split.days.slice(dayIndex).filter((d) => d.muscles.includes(m)).length;
     const taken = new Set<string>();
     const usedFamilies = new Set<string>();
     const exercises: PrescribedExercise[] = [];
     const notes: string[] = [];
     const swaps: Array<{ id: string; note: string }> = [];
 
-    // A compound counts a full set for every prime mover it trains, so a
-    // Romanian deadlift spends the glute budget as well as the hamstring one.
-    // Spec section 4.
-    const remaining = new Map<MuscleGroup, number>();
-    for (const m of day.muscles) remaining.set(m, perDay.get(`${day.day}:${m}`) ?? 0);
-
     for (const muscle of day.muscles) {
-      const sets = remaining.get(muscle) ?? 0;
+      // What is left of the week, spread over the sessions still to come.
+      const daysLeft = daysLeftFor(muscle);
+      const share = daysLeft > 0 ? Math.round((remaining.get(muscle) ?? 0) / daysLeft) : 0;
+      const sets = Math.min(share, EXERCISE_ALLOCATION.maxSetsPerMusclePerSession);
       if (sets < EXERCISE_ALLOCATION.minSetsWorthTraining) continue;
+      if (share > sets) {
+        notes.push(`${muscle} is capped at ${sets} sets today. Sets past that are done too fatigued to pay for themselves, and training ${muscle} twice a week would carry the rest.`);
+      }
 
       const wanted = Math.round(sets / EXERCISE_ALLOCATION.setsPerExercise);
       const count = Math.min(
@@ -154,11 +157,12 @@ export function buildSessions(
           });
         }
 
+        // A compound counts a full set for every prime mover it trains, so a
+        // hinge spends the glute budget as well as the hamstring one, this
+        // week and not only today. Spec section 4.
         const setCount = perExercise[i] ?? EXERCISE_ALLOCATION.minSetsPerExercise;
         for (const mover of exercise.primeMovers) {
-          if (mover !== muscle && remaining.has(mover)) {
-            remaining.set(mover, (remaining.get(mover) ?? 0) - setCount);
-          }
+          remaining.set(mover, Math.max(0, (remaining.get(mover) ?? 0) - setCount));
         }
 
         const scheme = schemeFor(exercise.pattern !== "isolation" && exercise.pattern !== "carry", goalScheme);
@@ -179,7 +183,14 @@ export function buildSessions(
     }
 
     if (superset) pairSupersets(exercises);
+
+    const beforeTrim = creditFor(exercises);
     trimToFit(exercises, intake.schedule.sessionMinutes, notes);
+    // Sets the trim removed were never spent, so hand them back to the week.
+    for (const [m, spent] of beforeTrim) {
+      const kept = creditFor(exercises).get(m) ?? 0;
+      if (spent > kept) remaining.set(m, (remaining.get(m) ?? 0) + (spent - kept));
+    }
 
     // Trimming can remove the exercise a swap note refers to.
     const kept = new Set(exercises.map((e) => e.exerciseId));

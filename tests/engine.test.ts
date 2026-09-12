@@ -162,9 +162,11 @@ describe("volume", () => {
     expect(v.large[0]).toBeGreaterThanOrEqual(6);
   });
 
-  it("adds volume to priority muscles only", () => {
+  it("starts priority muscles higher in the range without raising the ceiling", () => {
     const v = generateProgram(advancedMass, NOW).volume!;
-    expect(v.perMuscle.shoulders[1]).toBeGreaterThan(v.perMuscle.chest[1]);
+    // Priority biases allocation upward within the level cap, spec section 2.4.
+    expect(v.perMuscle.shoulders[0]).toBeGreaterThan(v.perMuscle.chest[0]);
+    expect(v.perMuscle.shoulders[1]).toBe(v.perMuscle.chest[1]);
   });
 });
 
