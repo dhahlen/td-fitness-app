@@ -28,6 +28,8 @@ The form in `public/index.html` currently computes everything client-side. That
 duplicates the engine and will drift. Rewire it.
 
 - [ ] Form collects into the `Intake` shape from `src/types.ts`
+- [x] Max lift fields are opt-in, with a test date that decides whether the
+      engine loads off them. The copy is served by `/api/intake/schema`
 - [ ] Submit posts to `/api/intake`, renders the returned program
 - [ ] Remove the duplicated client-side calculation entirely
 - [ ] Save and resume: store a draft keyed by a token in the URL, not in

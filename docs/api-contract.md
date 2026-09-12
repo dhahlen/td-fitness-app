@@ -10,8 +10,13 @@ Base: `https://<worker>.workers.dev`. All bodies JSON.
 ```
 
 ### `GET /api/intake/schema`
-Returns the PAR-Q+ question text and the engine version so the form does not
-hardcode them.
+Returns the PAR-Q+ question text, the engine version, and field guidance the
+form renders, so none of it is hardcoded in the client.
+
+```json
+{ "parq": ["..."], "engineVersion": "0.1.0",
+  "guidance": { "maxes": "...", "maxesTestedWithin": "..." } }
+```
 
 ### `POST /api/intake`
 Body: the `Intake` object from `src/types.ts`, validated by `IntakeSchema`.
@@ -133,6 +138,21 @@ muscle.
 Only the four lifts the intake collects a max for produce a number. Everything
 else prescribes a load-finding protocol, and the logged result sets the load
 from then on. Do not render an invented weight in place of `load_finding`.
+
+A max also has to be current. `history.maxesTestedWithin` gates what the engine
+will do with the numbers a client reports:
+
+| Tested | Sets working weights | Counts toward level |
+|---|---|---|
+| `"3_weeks"` | yes | yes |
+| `"3_months"` | no | yes |
+| `"over_3_months"` | no | no |
+| absent | no | no |
+
+A max reported but too old to load off returns `load_finding` with an
+instruction that says why, so the client is not left wondering where the number
+they gave went. Loading off a six month old max is a confident wrong answer,
+and finding the weight in session one is a correct one.
 
 ## Block
 

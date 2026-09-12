@@ -179,6 +179,26 @@ describe("load prescription", () => {
     expect(bench!.load.lb!).toBeLessThan(bench!.load.estimated1rmLb!);
   });
 
+  it("will not load off a max that was not tested recently", () => {
+    const stale: Intake = {
+      ...advancedMass,
+      history: { ...advancedMass.history, maxesTestedWithin: "3_months" },
+    };
+    const bench = allExercises(stale).find((e) => e.exerciseId === "bb_bench");
+    expect(bench?.load.kind).toBe("load_finding");
+    expect(bench?.load.lb).toBeUndefined();
+    expect(bench?.load.instruction).toContain("not tested in the last");
+  });
+
+  it("treats a max with no test date as stale", () => {
+    const undated: Intake = {
+      ...advancedMass,
+      history: { ...advancedMass.history, maxesTestedWithin: undefined },
+    };
+    const bench = allExercises(undated).find((e) => e.exerciseId === "bb_bench");
+    expect(bench?.load.kind).toBe("load_finding");
+  });
+
   it("prescribes a protocol rather than a guess when no max was given", () => {
     for (const e of allExercises(beginnerFatLoss)) {
       expect(e.load.kind).not.toBe("percent_1rm");

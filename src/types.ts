@@ -184,6 +184,12 @@ export interface Intake {
     currentFrequency: number;
     competition: "none" | "amateur" | "pro";
     maxes?: Partial<Record<"squat" | "bench" | "deadlift" | "ohp", number>>; // kg
+    /**
+     * When those maxes were last tested. A number goes stale, and a stale one
+     * is worse than a blank field because it loads every session off it. Absent
+     * means unknown, which is treated as stale.
+     */
+    maxesTestedWithin?: "3_weeks" | "3_months" | "over_3_months";
   };
   schedule: {
     daysPerWeek: 3 | 4 | 5 | 6;

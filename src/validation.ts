@@ -49,6 +49,7 @@ export const IntakeSchema = z.object({
       deadlift: z.number().positive().optional(),
       ohp: z.number().positive().optional(),
     }).optional(),
+    maxesTestedWithin: z.enum(["3_weeks", "3_months", "over_3_months"]).optional(),
   }),
   schedule: z.object({
     daysPerWeek: z.union([z.literal(3),z.literal(4),z.literal(5),z.literal(6)]),

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { generateProgram, ENGINE_VERSION, PARQ_QUESTIONS } from "./engine";
+import { generateProgram, ENGINE_VERSION, MAX_RECENCY, PARQ_QUESTIONS } from "./engine";
 import { IntakeSchema } from "./validation";
 import type { Intake, Program } from "./types";
 
@@ -38,8 +38,24 @@ function routingStatus(program: Program): ClientStatus {
 
 app.get("/api/health", (c) => c.json({ ok: true, engine: ENGINE_VERSION }));
 
+/**
+ * Field guidance the form renders rather than hardcodes. Product voice, not
+ * the coach's, since it explains how the intake behaves.
+ */
+const GUIDANCE = {
+  maxes:
+    `Leave these blank and we will establish your working weights in your first sessions. ` +
+    `Max numbers are worth giving if you are advanced or competing. If you are newer than that, ` +
+    `only fill them in if you tested in the last ${MAX_RECENCY.loadPrescriptionWeeks} weeks. ` +
+    `An out of date number sets every load off it, and a weight that is wrong from the start is ` +
+    `worse than one we find together.`,
+  maxesTestedWithin:
+    `Anything older than ${MAX_RECENCY.loadPrescriptionWeeks} weeks still tells us about your ` +
+    `training level. It does not set your starting weights.`,
+} as const;
+
 app.get("/api/intake/schema", (c) =>
-  c.json({ parq: PARQ_QUESTIONS, engineVersion: ENGINE_VERSION }),
+  c.json({ parq: PARQ_QUESTIONS, engineVersion: ENGINE_VERSION, guidance: GUIDANCE }),
 );
 
 /**

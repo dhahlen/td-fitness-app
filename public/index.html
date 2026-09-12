@@ -216,9 +216,25 @@ footer{color:var(--muted);font-size:13px;line-height:1.5;margin-top:30px;padding
   <div class="field"><label class="q" for="freq">How many days a week are you training right now?</label>
     <select id="freq"><option value="0">Not currently training</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6 or more</option></select></div>
   <fieldset><legend>Have you competed?</legend><div class="opts" id="comptn"></div></fieldset>
-  <div class="field"><label class="q">Best lifts if you know them (lb, optional)</label>
+  <div class="field"><label class="q">Current maxes, if you have them (lb)</label>
+    <p class="hint">Leave these blank and we will establish your working weights in your first sessions.
+      Max numbers are worth giving if you are advanced or competing. If you are newer than that, only fill
+      them in if you tested in the last three weeks. An out of date number sets every load off it, and a
+      weight that is wrong from the start is worse than one we find together.</p>
     <div class="row" style="margin-bottom:10px"><input id="sq" type="number" placeholder="Squat"><input id="bp" type="number" placeholder="Bench"></div>
-    <div class="row"><input id="dl" type="number" placeholder="Deadlift"><input id="ohp" type="number" placeholder="Overhead"></div></div>
+    <div class="row"><input id="dl" type="number" placeholder="Deadlift"><input id="ohp" type="number" placeholder="Overhead"></div>
+    <div class="cond" id="maxc">
+      <label class="q" for="maxwhen">When did you last test these?</label>
+      <select id="maxwhen">
+        <option value="">Select</option>
+        <option value="3_weeks">In the last three weeks</option>
+        <option value="3_months">One to three months ago</option>
+        <option value="over_3_months">More than three months ago</option>
+      </select>
+      <p class="hint" style="margin:8px 0 0">Anything older than three weeks still tells us about your training
+        level. It does not set your starting weights.</p>
+    </div>
+  </div>
 </section>
 
 <!-- 6 -->
@@ -406,7 +422,11 @@ opts($('#lb'),[
  {v:'none',t:'Keep everything private'}
 ],'radio','lb');
 
-/* conditional injury block */
+/* conditional blocks */
+const anyMax=()=>['#sq','#bp','#dl','#ohp'].some(s=>$(s).value.trim()!=='');
+['#sq','#bp','#dl','#ohp'].forEach(s=>
+  $(s).addEventListener('input',()=>$('#maxc').classList.toggle('on',anyMax())));
+
 document.addEventListener('change',e=>{
   if(e.target.name==='inj') $('#injc').classList.toggle('on',e.target.value==='yes');
   if(e.target.name==='prio'){
@@ -452,6 +472,8 @@ function valid(){
     if(!document.querySelector('input[name=pregnant]:checked')||!document.querySelector('input[name=ed]:checked')){
       e.textContent='Please answer every health screening question.'; e.classList.add('on'); return false; }
   }
+  if(cur===4 && anyMax() && !$('#maxwhen').value){
+    e.textContent='Tell us when you last tested those lifts, or clear them. Without a date we cannot use the numbers.'; e.classList.add('on'); $('#maxwhen').focus(); return false; }
   if(cur===3 && !document.querySelector('input[name=goal]:checked')){
     e.textContent='Pick a primary goal.'; e.classList.add('on'); return false; }
   if(cur===5 && !$$('input[name=dow]:checked').length){
@@ -481,7 +503,9 @@ function build(){
   const bw=lb;
   const rel=[[num('#sq'),1.25,2.0],[num('#bp'),1.0,1.5],[num('#dl'),1.5,2.25],[num('#ohp'),0.6,0.9]];
   let sp=0,n=0;
-  rel.forEach(([v,mid,adv])=>{ if(v>0){n++; const r=v/bw; sp+= r>=adv?6:r>=mid?4:r>=mid*0.7?2:0;} });
+  // A max older than three months says nothing about today, so it does not score.
+  if(['3_weeks','3_months'].includes($('#maxwhen').value))
+    rel.forEach(([v,mid,adv])=>{ if(v>0){n++; const r=v/bw; sp+= r>=adv?6:r>=mid?4:r>=mid*0.7?2:0;} });
   if(n) pts+=Math.round(sp/n);
   if(+$('#cons').value<=1 && pts>10) pts=10;
   const LEVEL = pts<=5?'Beginner':pts<=10?'Novice':pts<=16?'Intermediate':pts<=21?'Advanced':'Elite';
@@ -644,7 +668,8 @@ function build(){
     metrics:{height_cm:Math.round(cm),weight_lb:lb,weight_kg:+kg.toFixed(1),goal_weight_lb:gw||null,waist_in:num('#waist')||null,hip_in:num('#hip')||null,body_fat_pct:bf,bf_method:$('#bfm').value||null},
     goals:{primary:goal,block_weeks:+$('#weeks').value,event_date:$('#event').value||null,priority_muscles:cv('prio')},
     history:{years:+$('#yrs').value,consistency:+$('#cons').value,compound_competence:+rv('comp')||0,current_freq:+$('#freq').value,competition:+rv('comptn')||0,
-      maxes:{squat:num('#sq')||null,bench:num('#bp')||null,deadlift:num('#dl')||null,ohp:num('#ohp')||null},level_score:pts,level:LEVEL},
+      maxes:{squat:num('#sq')||null,bench:num('#bp')||null,deadlift:num('#dl')||null,ohp:num('#ohp')||null},
+      maxes_tested_within:$('#maxwhen').value||null,level_score:pts,level:LEVEL},
     schedule:{days_per_week:days,session_minutes:+$('#mins').value,available_days:cv('dow'),equipment:cv('equip'),cardio_equipment:cv('cardioeq')},
     nutrition:{pattern:rv('diet'),allergies:$('#allerg').value,avoid:$('#avoid').value,meals_per_day:+$('#meals').value,cooking:$('#cook').value,alcohol_per_week:num('#alc'),tracked_before:rv('tracked')},
     activity:{job_multiplier:+rv('job')||null,steps:+$('#steps').value,cardio_sessions:+$('#cardionow').value},

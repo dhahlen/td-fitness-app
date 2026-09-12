@@ -25,6 +25,7 @@ export const advancedMass: Intake = {
     yearsTraining: "over_5yr", consistentMonths12: "10_plus", compoundCompetence: 3,
     currentFrequency: 5, competition: "amateur",
     maxes: { squat: 180, bench: 130, deadlift: 220, ohp: 80 },
+    maxesTestedWithin: "3_weeks",
   },
   schedule: { ...beginnerFatLoss.schedule, daysPerWeek: 5, availableDays: ["Mon","Tue","Wed","Thu","Fri"] },
   recovery: { sleepHours: 8, sleepQuality: 4, stress: 3, caffeineMg: 300, burnoutHistory: false },

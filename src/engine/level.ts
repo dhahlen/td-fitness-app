@@ -3,9 +3,12 @@ import {
   DETRAINING_MONTHS_THRESHOLD, LEVEL_THRESHOLDS, STRENGTH_STANDARDS,
   YEARS_POINTS, type Level,
 } from "./standards";
+import { usableForLevel } from "./maxes";
 import type { Intake, LevelResult } from "../types";
 
 function strengthPoints(intake: Intake): number | null {
+  // A max too old to say anything about today does not score. See maxes.ts.
+  if (!usableForLevel(intake)) return null;
   const maxes = intake.history.maxes;
   if (!maxes) return null;
   const bw = intake.metrics.weightKg;

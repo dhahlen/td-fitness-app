@@ -18,6 +18,18 @@ describe("level classification", () => {
     expect(["advanced", "elite"]).toContain(r.level);
   });
 
+  it("scores a max tested months ago but not one older than that", () => {
+    // Level survives a stale-ish number, because how trained somebody is does
+    // not move week to week. See src/engine/maxes.ts.
+    const months: Intake = { ...advancedMass,
+      history: { ...advancedMass.history, maxesTestedWithin: "3_months" as const } };
+    expect(classifyLevel(months).breakdown.relativeStrength).toBeDefined();
+
+    const old: Intake = { ...advancedMass,
+      history: { ...advancedMass.history, maxesTestedWithin: "over_3_months" as const } };
+    expect(classifyLevel(old).breakdown.relativeStrength).toBeUndefined();
+  });
+
   it("caps a returning lifter at novice regardless of score", () => {
     const returning = { ...advancedMass, history: { ...advancedMass.history, consistentMonths12: "under_3" as const } };
     const r = classifyLevel(returning);

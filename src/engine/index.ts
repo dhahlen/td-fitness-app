@@ -110,5 +110,6 @@ export function generateProgram(intake: Intake, now = new Date()): Program {
 export * from "./standards";
 export { PARQ_QUESTIONS } from "./safety";
 export { EXERCISES, exerciseById, availableEquipment } from "./exercises";
+export { usableForLoad, usableForLevel } from "./maxes";
 export { estimate1rm } from "./progression";
 export { adjustCalories } from "./nutrition";

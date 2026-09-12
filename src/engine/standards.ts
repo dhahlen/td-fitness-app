@@ -60,6 +60,21 @@ export const STRENGTH_STANDARDS = {
  */
 export const DETRAINING_MONTHS_THRESHOLD = 6;
 
+/** Age in weeks of each recency band the intake offers. */
+export const MAX_TESTED_WEEKS = { "3_weeks": 3, "3_months": 13, over_3_months: 52 } as const;
+
+/**
+ * How old a reported max may be before the engine stops believing it.
+ *
+ * The two jobs tolerate different staleness. Loading every set off a number
+ * means the number has to be current. Reading it as evidence of how trained
+ * somebody is survives a few months, because that does not move week to week.
+ */
+export const MAX_RECENCY = {
+  loadPrescriptionWeeks: 3,
+  levelScoringWeeks: 13,
+} as const;
+
 /* ------------------------------------------------------------------ */
 /* Volume: weekly hard sets per muscle group                           */
 /* ------------------------------------------------------------------ */
