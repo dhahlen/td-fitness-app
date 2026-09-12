@@ -30,6 +30,118 @@ export type MuscleGroup =
   | "biceps" | "triceps" | "calves" | "forearms" | "abs" | "rear_delts";
 
 /* ------------------------------------------------------------------ */
+/* Exercise library                                                    */
+/* ------------------------------------------------------------------ */
+
+export type MovementPattern =
+  | "squat" | "hinge" | "lunge" | "horizontal_push" | "vertical_push"
+  | "horizontal_pull" | "vertical_pull" | "carry" | "isolation";
+
+export type LoadingType =
+  | "barbell" | "dumbbell" | "machine" | "cable" | "smith"
+  | "bodyweight" | "band" | "kettlebell";
+
+/**
+ * Physical items, not gym types. The `Equipment` values above are what a
+ * client selects; EQUIPMENT_PROFILES in exercises.ts expands each one into
+ * the items it gives access to.
+ */
+export type EquipmentItem =
+  | "barbell" | "ez_bar" | "dumbbell" | "kettlebell" | "machine" | "cable"
+  | "smith" | "rack" | "bench" | "incline_bench" | "decline_bench"
+  | "pullup_bar" | "dip_station" | "bodyweight" | "band" | "box"
+  | "sled" | "specialty_bar" | "landmine";
+
+export type SkillLevel = 1 | 2 | 3 | 4 | 5;
+
+/** The four lifts the intake collects a max for, so load can come off a 1RM. */
+export type MainLift = "squat" | "bench" | "deadlift" | "ohp";
+
+export interface Exercise {
+  id: string;
+  name: string;
+  aliases?: string[];
+  pattern: MovementPattern;
+  primeMovers: MuscleGroup[];
+  secondaryMovers?: MuscleGroup[];
+  /** Every item is required to perform the movement. */
+  equipment: EquipmentItem[];
+  loading: LoadingType;
+  skill: SkillLevel;
+  setupComplexity: 1 | 2 | 3;
+  unilateral?: boolean;
+  /** Injury sites that rule the movement out rather than just loading it light. */
+  contraindications?: InjurySite[];
+  /** Ordered preferred replacements. Falls back to a structural match. */
+  substitutions?: string[];
+  /** Pairs well in a superset, used on the advanced five-day split. */
+  supersetWith?: string[];
+  mainLift?: MainLift;
+  cues?: string[];
+}
+
+/* ------------------------------------------------------------------ */
+/* Prescribed sessions                                                 */
+/* ------------------------------------------------------------------ */
+
+export type LoadKind = "percent_1rm" | "load_finding" | "bodyweight";
+
+export interface LoadPrescription {
+  kind: LoadKind;
+  /** Working weight. Present only when a reported max made a real number possible. */
+  lb?: number;
+  lbRange?: [number, number];
+  pctOf1rm?: [number, number];
+  estimated1rmLb?: number;
+  instruction: string;
+}
+
+export interface Alternative {
+  id: string;
+  name: string;
+  reason: "equipment" | "injury" | "preference";
+}
+
+export interface PrescribedExercise {
+  exerciseId: string;
+  name: string;
+  /** Same muscle, different equipment. The client picks whichever is free. */
+  alternatives: Alternative[];
+  muscle: MuscleGroup;
+  sets: number;
+  reps: [number, number];
+  rir: [number, number] | null;
+  restSec: [number, number];
+  scheme: SchemeName;
+  load: LoadPrescription;
+  supersetWith?: string;
+  note?: string;
+}
+
+export interface SessionPlan {
+  day: number;
+  label: string;
+  focus: string;
+  muscles: MuscleGroup[];
+  exercises: PrescribedExercise[];
+  estimatedMinutes: number;
+  notes: string[];
+}
+
+export type BlockPhase = "accumulation" | "intensification" | "deload";
+
+export interface WeekPlan {
+  week: number;
+  phase: BlockPhase;
+  /** Applied to week 1 set counts. */
+  setMultiplier: number;
+  /** Applied to week 1 loads. */
+  loadMultiplier: number;
+  setsPerMuscle: Partial<Record<MuscleGroup, number>>;
+  note: string;
+}
+
+/* ------------------------------------------------------------------ */
 /* Intake                                                              */
 /* ------------------------------------------------------------------ */
 
@@ -155,7 +267,14 @@ export interface VolumeResult {
 export interface SplitResult {
   name: string;
   daysPerWeek: number;
-  days: Array<{ day: number; label: string; focus: string; notes?: string }>;
+  days: Array<{
+    day: number;
+    label: string;
+    focus: string;
+    /** Muscles this day trains, in the order they should be worked. */
+    muscles: MuscleGroup[];
+    notes?: string;
+  }>;
   rationale: string;
 }
 
@@ -213,4 +332,7 @@ export interface Program {
   progression: ProgressionResult | null;
   nutrition: NutritionResult | null;
   scheme: SchemeName | null;
+  /** Week 1 in full. Exercises hold for the mesocycle, sets and load ramp. */
+  sessions: SessionPlan[] | null;
+  block: WeekPlan[] | null;
 }

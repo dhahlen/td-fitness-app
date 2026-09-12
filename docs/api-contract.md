@@ -82,7 +82,66 @@ Client record, most recent program with `output` parsed, and all flags.
                  targetRatePctPerWeek, floorApplied, floorType, protein,
                  carbs, fat, ... } | null
   scheme: "strength_primary" | "hypertrophy_compound" | ... | null
+  sessions: SessionPlan[] | null
+  block:    WeekPlan[] | null
 }
+```
+
+## Sessions
+
+`sessions` is week 1 in full, one entry per training day. Exercises hold for
+the mesocycle, so later weeks change sets and load rather than movements.
+
+```ts
+{
+  day: 1
+  label: "Upper A"
+  focus: "Press emphasis"
+  muscles: MuscleGroup[]
+  estimatedMinutes: 52
+  notes: string[]                  // swaps made, volume trimmed to fit
+  exercises: [{
+    exerciseId: "bb_bench"
+    name: "Flat barbell bench press"
+    alternatives: [{ id, name, reason: "equipment" | "injury" | "preference" }]
+    muscle: "chest"
+    sets: 4
+    reps: [6, 12]
+    rir: [1, 3] | null             // null while a beginner is learning to judge it
+    restSec: [120, 180]
+    scheme: "hypertrophy_compound"
+    supersetWith?: "cable_pushdown"
+    load: LoadPrescription
+  }]
+}
+```
+
+`alternatives` is the "or" in the prescription: the same movement on equipment
+the client also has, for when the station is busy. It is never a different
+muscle.
+
+### Load
+
+```ts
+{ kind: "percent_1rm", lb: 200, lbRange: [200, 230],
+  pctOf1rm: [0.7, 0.8], estimated1rmLb: 287, instruction: "..." }
+
+{ kind: "load_finding", instruction: "..." }   // no max reported
+{ kind: "bodyweight",   instruction: "..." }
+```
+
+Only the four lifts the intake collects a max for produce a number. Everything
+else prescribes a load-finding protocol, and the logged result sets the load
+from then on. Do not render an invented weight in place of `load_finding`.
+
+## Block
+
+`block` is one entry per week of the requested block.
+
+```ts
+{ week: 6, phase: "accumulation" | "intensification" | "deload",
+  setMultiplier: 0.5, loadMultiplier: 0.875,
+  setsPerMuscle: { chest: 8, quads: 8, ... }, note: "..." }
 ```
 
 `null` on a section always means safety suppressed it. Never render a fallback

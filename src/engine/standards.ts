@@ -224,6 +224,83 @@ export const FAILED_SESSION_RESET_PCT = 0.1;
 export const RIR_INTRODUCTION_WEEK = 5;
 
 /* ------------------------------------------------------------------ */
+/* Session construction                                                */
+/* ------------------------------------------------------------------ */
+
+/** How the weekly set budget for a muscle is broken into exercises. */
+export const EXERCISE_ALLOCATION = {
+  setsPerExercise: 3,
+  minSetsPerExercise: 2,
+  maxSetsPerExercise: 5,
+  maxExercisesPerMusclePerSession: 3,
+  /** Below this many sets in a session a muscle is dropped from that day. */
+  minSetsWorthTraining: 2,
+} as const;
+
+/** Highest exercise skill rating a level is prescribed without coaching. */
+export const SKILL_CEILING: Record<Level, number> = {
+  beginner: 2, novice: 3, intermediate: 4, advanced: 5, elite: 5,
+};
+
+/**
+ * Self-rated competence on the barbell lifts, from never performed to coached
+ * and confident. It raises the skill ceiling but never lowers it, so a strong
+ * lifter who rates themselves low still gets movements matched to their level.
+ */
+export const COMPETENCE_SKILL_CEILING: Record<0 | 1 | 2 | 3, number> = {
+  0: 1, 1: 2, 2: 4, 3: 5,
+};
+
+/**
+ * Session length model. Session length is the field clients are most wrong
+ * about, so the generator trims to fit rather than handing over a plan that
+ * takes 20 minutes longer than they have.
+ */
+export const SESSION_TIME = {
+  warmupMinutes: 8,
+  workSecPerSet: 45,
+  transitionSecPerExercise: 60,
+  /** A superset pays one rest period across the pair, not two. */
+  supersetRestShare: 0.5,
+} as const;
+
+/* ------------------------------------------------------------------ */
+/* Load prescription                                                   */
+/* ------------------------------------------------------------------ */
+
+export const LB_PER_KG = 2.2046226218;
+
+export const LOAD = {
+  /** Smallest jump most gyms can make on a barbell. */
+  roundingLb: 5,
+  /** Dumbbells and machines usually move in smaller steps. */
+  smallRoundingLb: 2.5,
+  barbellLb: 45,
+  /** Load finding: work up to this, and that is the working weight. */
+  findingReps: 8,
+  findingRir: 2,
+  warmupSets: 3,
+} as const;
+
+/* ------------------------------------------------------------------ */
+/* Block structure                                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Block periodisation for advanced and elite. Linear and double progression
+ * use DELOAD.everyNWeeks instead, with the deload landing on that week.
+ * Spec section 7.
+ */
+export const BLOCK_SHAPE = {
+  accumulationWeeks: 5,
+  intensificationWeeks: 2,
+  deloadWeeks: 1,
+  /** Intensification trades volume for load. */
+  intensificationSetMultiplier: 0.75,
+  intensificationLoadMultiplier: 1.05,
+} as const;
+
+/* ------------------------------------------------------------------ */
 /* Rep and rest schemes                                                */
 /* ------------------------------------------------------------------ */
 

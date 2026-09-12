@@ -13,11 +13,18 @@ npm run dev
 
 Tests: `npm test`. Typecheck: `npm run typecheck`.
 
+The exercise library lives in `src/engine/exercises.ts` because the engine is
+pure and may not read a database. D1 needs the rows too, so
+`npm run seed:exercises` regenerates `schema/0002_exercises.sql` from the
+module. Change the module, run the script, commit both.
+
 ## Layout
 
 ```
 src/engine/standards.ts   every tunable number, change philosophy here
+src/engine/exercises.ts   the exercise library and substitution graph
 src/engine/*.ts           pure, deterministic program generation
+scripts/                  regenerates the D1 exercise seed from the library
 src/validation.ts         zod schema for the intake payload
 src/index.ts              Hono API
 schema/                   D1 migrations

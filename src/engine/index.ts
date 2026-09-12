@@ -5,6 +5,8 @@ import { computeVolume } from "./volume";
 import { selectSplit, sixDayEligible } from "./split";
 import { prescribeCardio } from "./cardio";
 import { selectProgression, selectScheme } from "./progression";
+import { buildSessions, deliveredSets, weeklySetTargets } from "./session";
+import { expandBlock } from "./block";
 import { VOLUME_MODIFIER_THRESHOLDS } from "./standards";
 import type { Intake, Program } from "../types";
 
@@ -26,7 +28,8 @@ export function generateProgram(intake: Intake, now = new Date()): Program {
       generatedAt: now.toISOString(),
       engineVersion: ENGINE_VERSION,
       safety, level,
-      split: null, volume: null, cardio: null, progression: null, nutrition: null, scheme: null,
+      split: null, volume: null, cardio: null, progression: null, nutrition: null,
+      scheme: null, sessions: null, block: null,
     };
   }
 
@@ -65,21 +68,47 @@ export function generateProgram(intake: Intake, now = new Date()): Program {
     });
   }
 
+  const split = selectSplit(effective, level.level);
+  const progression = selectProgression(level.level);
+  const scheme = selectScheme(effective);
+  const sessions = buildSessions(
+    effective, level.level, split, volume, scheme, progression.rirIntroducedWeek,
+  );
+
+  // Session length can cost real volume, so say which muscles came up short
+  // rather than letting the trim disappear into the plan.
+  const target = weeklySetTargets(effective, split, volume);
+  const delivered = deliveredSets(sessions);
+  const short = [...target]
+    .filter(([muscle, want]) => (delivered.get(muscle) ?? 0) < want)
+    .map(([muscle, want]) => `${muscle} ${delivered.get(muscle) ?? 0} of ${want}`);
+
+  if (short.length > 0) {
+    safety.flags.push({
+      code: "volume_reduced",
+      severity: "notice",
+      message: `${effective.schedule.sessionMinutes} minute sessions do not hold the full prescription, so weekly sets landed at ${short.join(", ")}. A longer session or an extra day carries the rest.`,
+    });
+  }
+
   return {
     generatedAt: now.toISOString(),
     engineVersion: ENGINE_VERSION,
     safety,
     level,
-    split: selectSplit(effective, level.level),
+    split,
     volume,
     cardio: prescribeCardio(effective, level.level),
-    progression: selectProgression(level.level),
+    progression,
     nutrition,
-    scheme: selectScheme(effective),
+    scheme,
+    sessions,
+    block: expandBlock(effective, level.level, split, volume, progression),
   };
 }
 
 export * from "./standards";
 export { PARQ_QUESTIONS } from "./safety";
+export { EXERCISES, exerciseById, availableEquipment } from "./exercises";
 export { estimate1rm } from "./progression";
 export { adjustCalories } from "./nutrition";

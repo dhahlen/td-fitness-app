@@ -50,16 +50,28 @@ Done when: no program reaches a client without passing through this view.
 
 Up to now the program is an outline. This turns it into actual sessions.
 
-- [ ] Seed roughly 120 exercises with the substitution graph populated
-- [ ] Session generator: fill the split's days with exercises that respect
+- [x] Seed roughly 120 exercises with the substitution graph populated
+- [x] Session generator: fill the split's days with exercises that respect
       equipment, injuries, skill level, and session length
-- [ ] Superset pairing for small muscle groups on the advanced five-day split
-- [ ] Starting load protocol: RPE-based load finding for beginners, percentage
-      of estimated 1RM for everyone else
-- [ ] Week-by-week expansion across the block, with the deload placed
+- [x] Superset pairing for small muscle groups on the advanced five-day split
+- [x] Starting load protocol: load finding where no max was reported,
+      percentage of estimated 1RM for the four lifts the intake collects
+- [x] Week-by-week expansion across the block, with the deload placed
 
 Done when: a client can open week 1 day 1 and see named exercises, sets, reps,
 and a target load.
+
+124 exercises across 35 movement families, generated into
+`schema/0002_exercises.sql` from `src/engine/exercises.ts`. A load number
+appears only where a reported max supports one, which was a deliberate call:
+see the load section of `docs/api-contract.md`.
+
+Still open from this milestone:
+
+- `STRENGTH_STANDARDS` are placeholders. See
+  `docs/strength-standards-proposal.md`, which needs your approval.
+- Exercise variations do not rotate between mesocycles yet. Spec section 7
+  asks for it at advanced and elite, and it needs M5 logging to be useful.
 
 ## M5: logging and the adjustment loop
 

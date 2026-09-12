@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "db:local": "wrangler d1 migrations apply program-engine --local",
     "db:remote": "wrangler d1 migrations apply program-engine --remote",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "seed:exercises": "tsx scripts/generate-exercise-seed.ts"
   },
   "dependencies": {
     "hono": "^4.13.7",
@@ -22,6 +23,7 @@
     "@cloudflare/workers-types": "^4.20260702.1",
     "typescript": "^5.9.3",
     "vitest": "^2.1.9",
-    "wrangler": "^3.99.0"
+    "wrangler": "^3.99.0",
+    "tsx": "^4.19.2"
   }
 }
