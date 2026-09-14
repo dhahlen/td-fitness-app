@@ -28,7 +28,7 @@ scripts/                  regenerates the D1 exercise seed from the library
 src/validation.ts         zod schema for the intake payload
 src/index.ts              Hono API
 schema/                   D1 migrations
-public/                   intake form
+public/                   intake form, posts to the API and renders the reply
 docs/                     spec, API contract, build plan
 tests/                    engine tests in node, route tests in workerd
 ```

@@ -27,16 +27,25 @@ needs a Cloudflare account.
 The form in `public/index.html` currently computes everything client-side. That
 duplicates the engine and will drift. Rewire it.
 
-- [ ] Form collects into the `Intake` shape from `src/types.ts`
+- [x] Form collects into the `Intake` shape from `src/types.ts`
 - [x] Max lift fields are opt-in, with a test date that decides whether the
       engine loads off them. The copy is served by `/api/intake/schema`
-- [ ] Submit posts to `/api/intake`, renders the returned program
-- [ ] Remove the duplicated client-side calculation entirely
-- [ ] Save and resume: store a draft keyed by a token in the URL, not in
+- [x] Submit posts to `/api/intake`, renders the returned program
+- [x] Remove the duplicated client-side calculation entirely
+- [x] Save and resume: store a draft keyed by a token in the URL, not in
       localStorage, so people can finish on a different device
-- [ ] Real email validation and a confirmation send
+- [x] Real email validation and a confirmation send
 
 Done when: the browser does no programming maths at all.
+
+Done. The form converts units, posts, and renders what comes back. Driven end
+to end in a real browser: ten steps filled, `POST /api/intake` returns 201, the
+page renders four day cards with 26 named exercises and a twelve week block,
+and the rows land in D1. Opening the draft link in a fresh browser restores
+every answer and the step.
+
+Email validation is the zod `.email()` check on the server, and the receipt
+sends through Resend only when `RESEND_API_KEY` is set.
 
 ## M3: coach dashboard
 

@@ -50,6 +50,37 @@ Same body, returns a `Program` without persisting. Used for live preview in the
 form. Note this still enforces every safety rule, so a suppressed-nutrition
 preview returns `nutrition: null` exactly like the real thing.
 
+## Drafts
+
+Save and resume for a part-finished intake. The token goes in the URL so a
+client can start on a phone and finish on a laptop, which localStorage cannot
+do. It also means the link grants access to whatever they have typed, so it is
+treated as private and the row is deleted 30 days after its last edit.
+
+### `POST /api/draft`
+Body `{ "payload": { ... }, "step": 4 }`. Returns `201 { "token": "uuid" }`.
+The payload is opaque to the server, and holds raw form state rather than an
+`Intake`, since a half-finished intake does not validate.
+
+### `GET /api/draft/:token`
+`200 { "payload": {...}, "step": 4, "updatedAt": "..." }`, or `404` with a
+message explaining that the link expired.
+
+### `PUT /api/draft/:token`
+Body as above. `404` once the draft has been submitted, so a resume link stops
+working after the intake lands.
+
+### `POST /api/intake?draft=<token>`
+Retires that draft on success.
+
+## Email
+
+`POST /api/intake` sends a receipt through Resend when `RESEND_API_KEY` is set,
+and sends nothing when it is not. It never goes to a client the age gate
+blocked, and it carries no calorie, macro or program figures at all. A receipt
+lands in an inbox that may not be private, and a client whose nutrition was
+suppressed must not receive a number by another route.
+
 ## Coach
 
 All require `Authorization: Bearer <COACH_API_KEY>`.

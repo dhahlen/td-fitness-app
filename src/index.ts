@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { generateProgram, ENGINE_VERSION, MAX_RECENCY, PARQ_QUESTIONS } from "./engine";
 import { IntakeSchema } from "./validation";
+import { sendIntakeReceipt } from "./email";
 import type { Intake, Program } from "./types";
 
 type Bindings = {
@@ -9,12 +10,20 @@ type Bindings = {
   ASSETS: Fetcher;
   COACH_API_KEY: string;
   ENVIRONMENT: string;
+  RESEND_API_KEY?: string;
+  INTAKE_FROM_EMAIL?: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
 app.use("/api/*", cors());
 
 const uuid = () => crypto.randomUUID();
+
+/**
+ * How long a part-finished intake is kept. It holds personal data before the
+ * client has committed to anything, so it does not live indefinitely.
+ */
+const DRAFT_TTL_DAYS = 30;
 
 type ClientStatus = "archived" | "manual_review" | "pending_clearance" | "active";
 
@@ -118,6 +127,23 @@ app.post("/api/intake", async (c) => {
 
   await c.env.DB.batch(stmts);
 
+  // Retire the draft this came from so the resume link stops working.
+  const draft = c.req.query("draft");
+  if (draft) {
+    await c.env.DB.prepare(`UPDATE drafts SET submitted_at=datetime('now') WHERE token=?`)
+      .bind(draft).run();
+  }
+
+  // The receipt must not hold up the response, and a mail failure must not
+  // fail an intake that is already saved.
+  const receipt = sendIntakeReceipt(c.env, intake.client, status).catch(() => undefined);
+  try {
+    c.executionCtx.waitUntil(receipt);
+  } catch {
+    // Reading executionCtx throws when the worker was invoked without one.
+    // The receipt still runs, it just is not kept alive past the response.
+  }
+
   return c.json({ clientId, programId, status, program }, 201);
 });
 
@@ -126,6 +152,57 @@ app.post("/api/program/preview", async (c) => {
   const parsed = IntakeSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "invalid_intake", issues: parsed.error.issues }, 400);
   return c.json(generateProgram(parsed.data as Intake));
+});
+
+/* ---------------- drafts ---------------- */
+
+/**
+ * Save and resume. The token goes in the URL so the client can finish on a
+ * different device, which localStorage cannot do.
+ */
+app.post("/api/draft", async (c) => {
+  const body = await c.req.json<{ payload?: unknown; step?: number }>().catch(() => null);
+  if (!body || typeof body.payload !== "object" || body.payload === null) {
+    return c.json({ error: "invalid_draft", message: "Send a payload object." }, 400);
+  }
+  const token = uuid();
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      `DELETE FROM drafts WHERE submitted_at IS NULL AND updated_at < datetime('now', ?)`,
+    ).bind(`-${DRAFT_TTL_DAYS} days`),
+    c.env.DB.prepare(`INSERT INTO drafts (token,payload,step) VALUES (?,?,?)`)
+      .bind(token, JSON.stringify(body.payload), body.step ?? 0),
+  ]);
+  return c.json({ token }, 201);
+});
+
+app.get("/api/draft/:token", async (c) => {
+  const row = await c.env.DB.prepare(
+    `SELECT payload, step, updated_at FROM drafts
+     WHERE token=? AND updated_at >= datetime('now', ?)`,
+  ).bind(c.req.param("token"), `-${DRAFT_TTL_DAYS} days`).first<{ payload: string; step: number; updated_at: string }>();
+
+  if (!row) {
+    return c.json({
+      error: "not_found",
+      message: `That link has expired. Drafts are kept for ${DRAFT_TTL_DAYS} days. Start again and we will not ask you to repeat anything you have already sent us.`,
+    }, 404);
+  }
+  return c.json({ payload: JSON.parse(row.payload), step: row.step, updatedAt: row.updated_at });
+});
+
+app.put("/api/draft/:token", async (c) => {
+  const body = await c.req.json<{ payload?: unknown; step?: number }>().catch(() => null);
+  if (!body || typeof body.payload !== "object" || body.payload === null) {
+    return c.json({ error: "invalid_draft", message: "Send a payload object." }, 400);
+  }
+  const res = await c.env.DB.prepare(
+    `UPDATE drafts SET payload=?, step=?, updated_at=datetime('now')
+     WHERE token=? AND submitted_at IS NULL`,
+  ).bind(JSON.stringify(body.payload), body.step ?? 0, c.req.param("token")).run();
+
+  if (!res.meta.changes) return c.json({ error: "not_found" }, 404);
+  return c.json({ ok: true });
 });
 
 /* ---------------- coach ---------------- */

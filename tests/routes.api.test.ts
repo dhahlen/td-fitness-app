@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { createExecutionContext, env, waitOnExecutionContext } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import app from "../src/index";
 import type { Intake } from "../src/types";
@@ -6,19 +6,31 @@ import { beginnerFatLoss } from "./fixtures";
 
 const COACH = { authorization: `Bearer ${env.COACH_API_KEY}` };
 
+async function send(request: Request) {
+  const ctx = createExecutionContext();
+  const res = await app.fetch(request, env, ctx);
+  await waitOnExecutionContext(ctx);
+  return res;
+}
+
 function post(path: string, body: unknown, headers: Record<string, string> = {}) {
-  return app.fetch(
-    new Request(`https://test${path}`, {
-      method: "POST",
-      headers: { "content-type": "application/json", ...headers },
-      body: JSON.stringify(body),
-    }),
-    env,
-  );
+  return send(new Request(`https://test${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...headers },
+    body: JSON.stringify(body),
+  }));
 }
 
 const get = (path: string, headers: Record<string, string> = {}) =>
-  app.fetch(new Request(`https://test${path}`, { headers }), env);
+  send(new Request(`https://test${path}`, { headers }));
+
+function put(path: string, body: unknown) {
+  return send(new Request(`https://test${path}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  }));
+}
 
 const withEmail = (base: Intake, email: string): Intake =>
   ({ ...base, client: { ...base.client, email } });
@@ -127,6 +139,56 @@ describe("POST /api/program/preview", () => {
     expect(res.status).toBe(200);
     expect((await res.json<{ level: { level: string } }>()).level.level).toBe("beginner");
     expect(await count("SELECT COUNT(*) n FROM clients")).toBe(before);
+  });
+});
+
+describe("drafts", () => {
+  const draft = { v: { name: "Half Done", wt: "163" }, r: { goal: "fatloss" }, c: { dow: ["Mon"] } };
+
+  it("round-trips a part-finished intake by token", async () => {
+    const created = await post("/api/draft", { payload: draft, step: 4 });
+    expect(created.status).toBe(201);
+    const { token } = await created.json<{ token: string }>();
+    expect(token).toMatch(/[0-9a-f-]{36}/);
+
+    // A different device has only the token.
+    const res = await get(`/api/draft/${token}`);
+    expect(res.status).toBe(200);
+    const body = await res.json<{ payload: typeof draft; step: number }>();
+    expect(body.payload).toEqual(draft);
+    expect(body.step).toBe(4);
+  });
+
+  it("updates a draft in place as the client works through it", async () => {
+    const { token } = await (await post("/api/draft", { payload: draft, step: 1 })).json<{ token: string }>();
+    const later = { ...draft, v: { ...draft.v, wt: "161" } };
+
+    expect((await put(`/api/draft/${token}`, { payload: later, step: 7 })).status).toBe(200);
+    const body = await (await get(`/api/draft/${token}`)).json<{ payload: typeof later; step: number }>();
+    expect(body.payload.v.wt).toBe("161");
+    expect(body.step).toBe(7);
+  });
+
+  it("explains an expired or unknown link instead of failing silently", async () => {
+    const res = await get("/api/draft/00000000-0000-0000-0000-000000000000");
+    expect(res.status).toBe(404);
+    expect((await res.json<{ message: string }>()).message).toContain("30 days");
+  });
+
+  it("rejects a draft with no payload", async () => {
+    expect((await post("/api/draft", { step: 2 })).status).toBe(400);
+  });
+
+  it("retires the draft once the intake is submitted", async () => {
+    const { token } = await (await post("/api/draft", { payload: draft, step: 9 })).json<{ token: string }>();
+    const res = await post(`/api/intake?draft=${token}`, withEmail(beginnerFatLoss, "fromdraft@test.com"));
+    expect(res.status).toBe(201);
+
+    expect(await count(
+      "SELECT COUNT(*) n FROM drafts WHERE token=? AND submitted_at IS NOT NULL", token,
+    )).toBe(1);
+    // A retired draft cannot be written to again.
+    expect((await put(`/api/draft/${token}`, { payload: draft, step: 9 })).status).toBe(404);
   });
 });
 
