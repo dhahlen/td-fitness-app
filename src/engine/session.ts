@@ -119,7 +119,8 @@ export function buildSessions(
       const sets = Math.min(share, EXERCISE_ALLOCATION.maxSetsPerMusclePerSession);
       if (sets < EXERCISE_ALLOCATION.minSetsWorthTraining) continue;
       if (share > sets) {
-        notes.push(`${muscle} is capped at ${sets} sets today. Sets past that are done too fatigued to pay for themselves, and training ${muscle} twice a week would carry the rest.`);
+        const name = muscle.replace(/_/g, " ");
+        notes.push(`Capped at ${sets} sets of ${name} today. Sets past that are done too fatigued to pay for themselves, and training ${name} twice a week would carry the rest.`);
       }
 
       const wanted = Math.round(sets / EXERCISE_ALLOCATION.setsPerExercise);

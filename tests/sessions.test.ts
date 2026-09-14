@@ -359,7 +359,7 @@ describe("shared volume", () => {
     // The advanced body-part split trains a muscle once, so the weekly target
     // does not fit in one session. The client should be told, not shorted.
     const p = generateProgram(advancedMass, NOW);
-    const capped = p.sessions!.flatMap((s) => s.notes).filter((n) => n.includes("capped at"));
+    const capped = p.sessions!.flatMap((s) => s.notes).filter((n) => n.startsWith("Capped at"));
     expect(capped.length).toBeGreaterThan(0);
     expect(p.safety.flags.some((f) => f.code === "volume_reduced")).toBe(true);
   });
